@@ -45,7 +45,6 @@ export const PIPE_SIZES = [
 // Godowns
 export const GODOWNS = {
   WAGHOLI: 'Wagholi',
-  GANGADHAM: 'Gangadham',
 };
 
 // Plants

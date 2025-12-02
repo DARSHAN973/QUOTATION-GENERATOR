@@ -4,7 +4,7 @@ import React from 'react';
 import { 
   Calculator, 
   FileText, 
-  History,
+  LayoutDashboard,
   ChevronRight,
   Building2
 } from 'lucide-react';
@@ -17,8 +17,8 @@ const Sidebar = () => {
   const tabs = [
     {
       id: 'quotation-history',
-      name: 'Quotation History',
-      icon: History,
+      name: 'Dashboard',
+      icon: LayoutDashboard,
       description: 'View Previous Quotes'
     },
     {

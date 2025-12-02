@@ -77,28 +77,11 @@ const NewQuotation = () => {
             </div>
 
             <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">Net Amount</p>
-              <p className="text-2xl font-semibold text-gray-900">₹{totals.netAmount.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">Before GST</p>
+              <p className="text-sm text-gray-600">Total Amount</p>
+              <p className="text-2xl font-semibold text-gray-900">₹{totals.totalAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">Including GST</p>
             </div>
           </div>
-
-          {totals.netAmount > 0 && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex justify-between text-sm">
-                <span>Net Amount:</span>
-                <span>₹{totals.netAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>GST ({orderSettings.gst}%):</span>
-                <span>₹{totals.gstAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-semibold text-base border-t border-blue-200 pt-2 mt-2">
-                <span>Total Amount:</span>
-                <span>₹{totals.totalAmount.toFixed(2)}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Action Buttons */}
