@@ -106,10 +106,10 @@ const QuotationHistory = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
-      case 'sent': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'sent': return 'bg-blue-100 text-blue-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -132,40 +132,40 @@ const QuotationHistory = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-white min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Quotation History</h1>
-        <p className="text-gray-600 dark:text-gray-300">Manage and track all your quotations</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Quotation History</h1>
+        <p className="text-gray-600">Manage and track all your quotations</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Quotations</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total || 0}</p>
+              <p className="text-sm font-medium text-gray-600">Total Quotations</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total || 0}</p>
             </div>
             <FileText className="w-8 h-8 text-blue-500" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.thisMonth || 0}</p>
+              <p className="text-sm font-medium text-gray-600">This Month</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.thisMonth || 0}</p>
             </div>
             <Calendar className="w-8 h-8 text-green-500" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(stats.totalValue || 0)}</p>
+              <p className="text-sm font-medium text-gray-600">Total Value</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue || 0)}</p>
             </div>
             <div className="text-green-500">₹</div>
           </div>
@@ -173,7 +173,7 @@ const QuotationHistory = () => {
       </div>
 
       {/* Controls */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -184,7 +184,7 @@ const QuotationHistory = () => {
                 placeholder="Search quotations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -211,17 +211,17 @@ const QuotationHistory = () => {
       </div>
 
       {/* Quotations Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-            <p className="mt-4 text-gray-500 dark:text-gray-400">Loading quotations...</p>
+            <p className="mt-4 text-gray-500">Loading quotations...</p>
           </div>
         ) : filteredQuotations.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No quotations found</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No quotations found</h3>
+            <p className="text-gray-500 mb-4">
               {quotations.length === 0 ? 'Create your first quotation to get started.' : 'Try adjusting your search.'}
             </p>
             <button
@@ -235,38 +235,38 @@ const QuotationHistory = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Quotation ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredQuotations.map((quotation) => (
-                  <tr key={quotation.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={quotation.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         {getStatusIcon(quotation.status)}
-                        <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">{quotation.id}</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">{quotation.id}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
+                      <div className="text-sm text-gray-900">
                         {quotation.orderSettings?.customerName || 'N/A'}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-sm text-gray-500">
                         {quotation.orderSettings?.plant} • {quotation.orderSettings?.godown}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      <div className="text-sm font-medium text-gray-900">
                         {formatCurrency(quotation.totals?.totalAmount || 0)}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-sm text-gray-500">
                         {quotation.lineItems?.length || 0} items
                       </div>
                     </td>
@@ -281,28 +281,28 @@ const QuotationHistory = () => {
                         <option value="rejected">Rejected</option>
                       </select>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(quotation.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleViewQuotation(quotation)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900"
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
                           title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleEditQuotation(quotation)}
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 rounded-full hover:bg-green-50 dark:hover:bg-green-900"
+                          className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50"
                           title="Edit"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteQuotation(quotation.id)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900"
+                          className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
