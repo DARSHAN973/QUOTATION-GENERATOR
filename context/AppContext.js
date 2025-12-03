@@ -41,6 +41,14 @@ const initialState = {
       netAmount: 0,
       gstAmount: 0,
       totalAmount: 0,
+    },
+    termsAndConditions: {
+      paymentTerm: 'Against Delivery',
+      validTillDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      showTransportExtra: true,
+      showLoadingExtra: true,
+      showGodownLocation: true,
+      customPaymentTerm: ''
     }
   }
 };
@@ -56,6 +64,7 @@ const actionTypes = {
   REMOVE_LINE_ITEM: 'REMOVE_LINE_ITEM',
   UPDATE_BULK_CALCULATION: 'UPDATE_BULK_CALCULATION',
   UPDATE_TOTALS: 'UPDATE_TOTALS',
+  UPDATE_TERMS_AND_CONDITIONS: 'UPDATE_TERMS_AND_CONDITIONS',
   RESET_QUOTATION: 'RESET_QUOTATION',
   LOAD_QUOTATION: 'LOAD_QUOTATION',
   SAVE_QUOTATION: 'SAVE_QUOTATION',
@@ -127,6 +136,15 @@ const appReducer = (state, action) => {
         quotation: {
           ...state.quotation,
           bulkCalculation: { ...state.quotation.bulkCalculation, ...action.payload }
+        }
+      };
+      
+    case actionTypes.UPDATE_TERMS_AND_CONDITIONS:
+      return {
+        ...state,
+        quotation: {
+          ...state.quotation,
+          termsAndConditions: { ...state.quotation.termsAndConditions, ...action.payload }
         }
       };
       
@@ -217,6 +235,11 @@ export const AppProvider = ({ children }) => {
     updateBulkCalculation: (calculation) => dispatch({ 
       type: actionTypes.UPDATE_BULK_CALCULATION, 
       payload: calculation 
+    }),
+    
+    updateTermsAndConditions: (terms) => dispatch({
+      type: actionTypes.UPDATE_TERMS_AND_CONDITIONS,
+      payload: terms
     }),
     
     updateTotals: (totals) => dispatch({ type: actionTypes.UPDATE_TOTALS, payload: totals }),

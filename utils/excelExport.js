@@ -6,14 +6,15 @@ import { SUPPLY_TYPES, RATE_BASIS } from '../data/constants.js';
 import { generateDescription } from './descriptions.js';
 
 // Create Excel workbook for quotation
-export const createQuotationExcel = (quotationData, settings) => {
+export const createQuotationExcel = (quotationData, settings, options = {}) => {
   const { orderSettings, lineItems, totals } = quotationData;
+  const { columnVisibility = {}, editableDescriptions = {} } = options;
   
   // Create a new workbook
   const workbook = XLSX.utils.book_new();
   
   // Prepare data for the main quotation sheet
-  const quotationSheet = createQuotationSheet(quotationData, settings);
+  const quotationSheet = createQuotationSheet(quotationData, settings, options);
   
   // Add the quotation sheet to workbook
   XLSX.utils.book_append_sheet(workbook, quotationSheet, 'Quotation');
@@ -22,8 +23,23 @@ export const createQuotationExcel = (quotationData, settings) => {
 };
 
 // Create the main quotation sheet
-const createQuotationSheet = (quotationData, settings) => {
-  const { orderSettings, lineItems, totals } = quotationData;
+const createQuotationSheet = (quotationData, settings, options = {}) => {
+  const { orderSettings, lineItems, totals, termsAndConditions = {} } = quotationData;
+  const { columnVisibility = {}, editableDescriptions = {} } = options;
+  
+  // Default column visibility if not provided
+  const defaultVisibility = {
+    srNo: true,
+    description: true,
+    qty: true,
+    unit: true,
+    weight: true,
+    ratePerKg: true,
+    ratePerMtr: true,
+    amount: true
+  };
+  
+  const visibility = { ...defaultVisibility, ...columnVisibility };
   
   // Prepare the data array for Excel
   const data = [];
@@ -38,53 +54,68 @@ const createQuotationSheet = (quotationData, settings) => {
   data.push(['We are pleased to quote our best rates as under:']);
   data.push([]);
   
-  // Table headers
-  data.push([
-    'SR. NO',
-    'ITEM DESCRIPTION',
-    'QTY',
-    'UNIT',
-    'WEIGHT',
-    'RATE PER KGS',
-    'RATE PER MTRS',
-    'AMOUNT'
-  ]);
+  // Table headers - only include visible columns
+  const headers = [];
+  if (visibility.srNo) headers.push('SR. NO');
+  if (visibility.description) headers.push('ITEM DESCRIPTION');
+  if (visibility.qty) headers.push('QTY');
+  if (visibility.unit) headers.push('UNIT');
+  if (visibility.weight) headers.push('WEIGHT');
+  if (visibility.ratePerKg) headers.push('RATE PER KGS');
+  if (visibility.ratePerMtr) headers.push('RATE PER MTRS');
+  if (visibility.amount) headers.push('AMOUNT');
+  
+  data.push(headers);
   
   // Process line items
   let srNo = 1;
   lineItems.forEach((item) => {
-    // Generate description
-    const description = generateDescription(item.material, item.sizes, {
-      pipeClass: item.pipeClass,
-      schedule: item.schedule,
-      make: item.make,
-      thickness: item.thickness
-    });
+    // Use editable description if available, otherwise generate
+    let descriptions;
+    if (editableDescriptions[item.id]) {
+      const lines = editableDescriptions[item.id].split('\n');
+      descriptions = {
+        header: lines[0] || '',
+        subLines: lines.slice(1).filter(line => line.trim())
+      };
+    } else {
+      descriptions = generateDescription(item.material, item.sizes, {
+        pipeClass: item.pipeClass,
+        schedule: item.schedule,
+        make: item.make,
+        thickness: item.thickness
+      });
+    }
     
-    // Add header description
-    data.push([
-      srNo,
-      description.header,
-      '', '', '', '', '', ''
-    ]);
+    // Add header description row
+    const headerRow = [];
+    if (visibility.srNo) headerRow.push(String.fromCharCode(64 + srNo) + '.');
+    if (visibility.description) headerRow.push(descriptions.header);
+    if (visibility.qty) headerRow.push('');
+    if (visibility.unit) headerRow.push('');
+    if (visibility.weight) headerRow.push('');
+    if (visibility.ratePerKg) headerRow.push('');
+    if (visibility.ratePerMtr) headerRow.push('');
+    if (visibility.amount) headerRow.push('');
+    data.push(headerRow);
     
     // Add sub-lines for each size
-    description.subLines.forEach((subLine) => {
+    descriptions.subLines.forEach((subLine, subIndex) => {
       const qty = item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
       const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
       const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : item.finalRate / item.wtPerMtr;
       const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : item.finalRate * item.wtPerMtr;
       
-      data.push([
-        '',
-        subLine,
-        qty.toFixed(2),
-        unit,
-        item.totalKg.toFixed(2),
-        ratePerKg.toFixed(2),
-        ratePerMtr.toFixed(2),
-        item.lineAmount.toFixed(2)
-      ]);
+      const subRow = [];
+      if (visibility.srNo) subRow.push((subIndex + 1) + '.');
+      if (visibility.description) subRow.push(subLine);
+      if (visibility.qty) subRow.push(qty.toFixed(2));
+      if (visibility.unit) subRow.push(unit);
+      if (visibility.weight) subRow.push(item.totalKg.toFixed(2));
+      if (visibility.ratePerKg) subRow.push(ratePerKg.toFixed(2));
+      if (visibility.ratePerMtr) subRow.push(ratePerMtr.toFixed(2));
+      if (visibility.amount) subRow.push(item.lineAmount.toFixed(2));
+      data.push(subRow);
     });
     
     srNo++;
@@ -95,34 +126,88 @@ const createQuotationSheet = (quotationData, settings) => {
     sum + (item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg), 0
   );
   
-  data.push([
-    '',
-    'TOTAL',
-    totalQty.toFixed(2),
-    '',
-    totals.totalWeight.toFixed(2),
-    '',
-    '',
-    totals.netAmount.toFixed(2)
-  ]);
+  const totalRow = [];
+  if (visibility.srNo) totalRow.push('');
+  if (visibility.description) totalRow.push('TOTAL');
+  if (visibility.qty) totalRow.push(totalQty.toFixed(2));
+  if (visibility.unit) totalRow.push('');
+  if (visibility.weight) totalRow.push(totals.totalWeight.toFixed(2));
+  if (visibility.ratePerKg) totalRow.push('');
+  if (visibility.ratePerMtr) totalRow.push('');
+  if (visibility.amount) totalRow.push(totals.netAmount.toFixed(2));
+  data.push(totalRow);
   
   data.push([]);
-  data.push(['', '', '', '', '', '', 'NET AMOUNT:', totals.netAmount.toFixed(2)]);
-  data.push(['', '', '', '', '', '', `GST ${orderSettings.gst}%:`, totals.gstAmount.toFixed(2)]);
+  
+  // Amount summary
   data.push(['', '', '', '', '', '', 'TOTAL AMOUNT:', totals.totalAmount.toFixed(2)]);
   
   data.push([]);
   
   // Terms and conditions
-  const terms = getTermsAndConditions(orderSettings);
+  const terms = getTermsAndConditions(orderSettings, termsAndConditions);
   terms.forEach(term => {
     data.push([term]);
   });
   
-  // Create worksheet
+  // Create worksheet from data
   const worksheet = XLSX.utils.aoa_to_sheet(data);
   
+  // Add formatting and styling
+  const range = XLSX.utils.decode_range(worksheet['!ref']);
+  
   // Set column widths
+  const columnWidths = [];
+  for (let col = 0; col <= range.e.c; col++) {
+    columnWidths.push({ wch: 15 });
+  }
+  worksheet['!cols'] = columnWidths;
+  
+  // Apply borders and highlighting to all cells
+  for (let row = range.s.r; row <= range.e.r; row++) {
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+      if (!worksheet[cellAddress]) continue;
+      
+      // Add borders to all cells
+      if (!worksheet[cellAddress].s) worksheet[cellAddress].s = {};
+      worksheet[cellAddress].s.border = {
+        top: { style: 'thin', color: { auto: 1 } },
+        bottom: { style: 'thin', color: { auto: 1 } },
+        left: { style: 'thin', color: { auto: 1 } },
+        right: { style: 'thin', color: { auto: 1 } }
+      };
+      
+      // Highlight header rows (row 0-2: company info, quotation header, table headers)
+      if (row <= 2) {
+        if (!worksheet[cellAddress].s) worksheet[cellAddress].s = {};
+        worksheet[cellAddress].s.fill = {
+          fgColor: { rgb: 'E6F3FF' }
+        };
+        worksheet[cellAddress].s.font = {
+          bold: true
+        };
+      }
+      
+      // Highlight total row and amount summary rows
+      if (row >= range.e.r - 5) { // Last few rows typically contain totals
+        const cellValue = worksheet[cellAddress].v;
+        if (cellValue && (
+          cellValue.toString().includes('TOTAL') || 
+          cellValue.toString().includes('AMOUNT') ||
+          cellValue.toString().includes('GST')
+        )) {
+          if (!worksheet[cellAddress].s) worksheet[cellAddress].s = {};
+          worksheet[cellAddress].s.fill = {
+            fgColor: { rgb: 'FFFF99' }
+          };
+          worksheet[cellAddress].s.font = {
+            bold: true
+          };
+        }
+      }
+    }
+  }
   const colWidths = [
     { wch: 8 },   // SR. NO
     { wch: 50 },  // ITEM DESCRIPTION

@@ -7,6 +7,7 @@ import { SUPPLY_TYPES } from '../../data/constants.js';
 import OrderSettings from '../forms/OrderSettings.js';
 import LineItemsTable from '../tables/LineItemsTable.js';
 import BulkCalculator from '../forms/BulkCalculator.js';
+import TermsAndConditions from '../forms/TermsAndConditions.js';
 
 const NewQuotation = () => {
   const { state, actions } = useApp();
@@ -48,6 +49,9 @@ const NewQuotation = () => {
 
         {/* Line Items Table */}
         <LineItemsTable />
+
+        {/* Terms and Conditions */}
+        <TermsAndConditions />
 
         {/* Summary Panel */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

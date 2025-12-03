@@ -21,15 +21,21 @@ import { format } from 'date-fns';
 const PreviewExport = () => {
   const { state, actions } = useApp();
   const { quotation, settings } = state;
-  const { orderSettings, lineItems, totals } = quotation;
+  const { orderSettings, lineItems, totals, termsAndConditions } = quotation;
   
   const [editableDescriptions, setEditableDescriptions] = useState({});
   const [editingDescription, setEditingDescription] = useState(null);
-  const [paymentTerm, setPaymentTerm] = useState('Against Delivery');
-  const [validTillDate, setValidTillDate] = useState(
-    format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
-  );
   const [exportStatus, setExportStatus] = useState('');
+  const [columnVisibility, setColumnVisibility] = useState({
+    srNo: true,
+    description: true,
+    qty: true,
+    unit: true,
+    weight: true,
+    ratePerKg: true,
+    ratePerMtr: true,
+    amount: true
+  });
 
   // Generate descriptions for all line items
   useEffect(() => {
@@ -54,7 +60,10 @@ const PreviewExport = () => {
 
   const handleExportBasic = async () => {
     try {
-      const result = exportQuotationAsExcel(quotation, settings);
+      const result = exportQuotationAsExcel(quotation, settings, {
+        columnVisibility,
+        editableDescriptions
+      });
       if (result.success) {
         setExportStatus('success');
         setTimeout(() => setExportStatus(''), 3000);
@@ -70,7 +79,10 @@ const PreviewExport = () => {
 
   const handleExportDetailed = async () => {
     try {
-      const result = exportDetailedQuotation(quotation, settings);
+      const result = exportDetailedQuotation(quotation, settings, {
+        columnVisibility,
+        editableDescriptions
+      });
       if (result.success) {
         setExportStatus('success');
         setTimeout(() => setExportStatus(''), 3000);
@@ -94,7 +106,7 @@ const PreviewExport = () => {
 
   if (lineItems.length === 0) {
     return (
-      <div className="p-8">
+      <div className="p-8 bg-white min-h-screen">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Preview & Export</h1>
           <p className="text-gray-600 mt-2">Review your quotation and export to Excel</p>
@@ -117,8 +129,7 @@ const PreviewExport = () => {
   }
 
   return (
-    <div className="p-8">
-      {/* Header */}
+    <div className="p-8 bg-white min-h-screen">{/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -152,6 +163,36 @@ const PreviewExport = () => {
         </div>
       )}
 
+      {/* Column Visibility Controls */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Column Visibility</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { key: 'srNo', label: 'SR. NO' },
+            { key: 'description', label: 'Description' },
+            { key: 'qty', label: 'Quantity' },
+            { key: 'unit', label: 'Unit' },
+            { key: 'weight', label: 'Weight' },
+            { key: 'ratePerKg', label: 'Rate/Kg' },
+            { key: 'ratePerMtr', label: 'Rate/Mtr' },
+            { key: 'amount', label: 'Amount' }
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={columnVisibility[key]}
+                onChange={(e) => setColumnVisibility(prev => ({
+                  ...prev,
+                  [key]: e.target.checked
+                }))}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
       {/* Preview Panel */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
         <div className="border-b border-gray-200 p-6">
@@ -168,25 +209,25 @@ const PreviewExport = () => {
           </div>
 
           {/* Intro Text */}
-          <div className="mb-6 text-sm">
-            <p className="mb-2">Respected Sir,</p>
-            <p className="mb-2">Thank you very much for your valued inquiry.</p>
-            <p className="mb-4">We are pleased to quote our best rates as under:</p>
+          <div className="mb-6 text-sm text-black">
+            <p className="mb-2 text-black">Respected Sir,</p>
+            <p className="mb-2 text-black">Thank you very much for your valued inquiry.</p>
+            <p className="mb-4 text-black">We are pleased to quote our best rates as under:</p>
           </div>
 
           {/* Main Table */}
           <div className="overflow-x-auto mb-6">
-            <table className="w-full border-collapse border border-gray-400 text-sm">
+            <table className="w-full border-collapse border border-gray-400 text-sm text-black">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-gray-400 px-3 py-2 text-left">SR. NO</th>
-                  <th className="border border-gray-400 px-3 py-2 text-left">ITEM DESCRIPTION</th>
-                  <th className="border border-gray-400 px-3 py-2 text-center">QTY</th>
-                  <th className="border border-gray-400 px-3 py-2 text-center">UNIT</th>
-                  <th className="border border-gray-400 px-3 py-2 text-center">WEIGHT</th>
-                  <th className="border border-gray-400 px-3 py-2 text-center">RATE PER KGS</th>
-                  <th className="border border-gray-400 px-3 py-2 text-center">RATE PER MTRS</th>
-                  <th className="border border-gray-400 px-3 py-2 text-center">AMOUNT</th>
+                  {columnVisibility.srNo && <th className="border border-gray-400 px-3 py-2 text-left text-black">SR. NO</th>}
+                  {columnVisibility.description && <th className="border border-gray-400 px-3 py-2 text-left text-black">ITEM DESCRIPTION</th>}
+                  {columnVisibility.qty && <th className="border border-gray-400 px-3 py-2 text-center text-black">QTY</th>}
+                  {columnVisibility.unit && <th className="border border-gray-400 px-3 py-2 text-center text-black">UNIT</th>}
+                  {columnVisibility.weight && <th className="border border-gray-400 px-3 py-2 text-center text-black">WEIGHT</th>}
+                  {columnVisibility.ratePerKg && <th className="border border-gray-400 px-3 py-2 text-center text-black">RATE PER KGS</th>}
+                  {columnVisibility.ratePerMtr && <th className="border border-gray-400 px-3 py-2 text-center text-black">RATE PER MTRS</th>}
+                  {columnVisibility.amount && <th className="border border-gray-400 px-3 py-2 text-center text-black">AMOUNT</th>}
                 </tr>
               </thead>
               <tbody>
@@ -196,14 +237,17 @@ const PreviewExport = () => {
                   const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : item.finalRate / item.wtPerMtr;
                   const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : item.finalRate * item.wtPerMtr;
 
+                  // Generate main SR NO as A, B, C...
+                  const mainSrNo = String.fromCharCode(65 + index); // A, B, C, D...
+
                   return (
                     <React.Fragment key={item.id}>
                       {/* Header Row */}
                       <tr>
-                        <td className="border border-gray-400 px-3 py-2 font-semibold">{index + 1}.</td>
-                        <td className="border border-gray-400 px-3 py-2">
+                        {columnVisibility.srNo && <td className="border border-gray-400 px-3 py-2 font-semibold text-black">{mainSrNo}.</td>}
+                        {columnVisibility.description && <td className="border border-gray-400 px-3 py-2">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold">
+                            <span className="font-semibold text-black">
                               {editableDescriptions[item.id]?.split('\n')[0] || 'Loading...'}
                             </span>
                             <button
@@ -213,19 +257,19 @@ const PreviewExport = () => {
                               <Edit className="w-3 h-3" />
                             </button>
                           </div>
-                        </td>
-                        <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                        <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                        <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                        <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                        <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                        <td className="border border-gray-400 px-3 py-2 text-center"></td>
+                        </td>}
+                        {columnVisibility.qty && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                        {columnVisibility.unit && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                        {columnVisibility.weight && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                        {columnVisibility.ratePerKg && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                        {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                        {columnVisibility.amount && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
                       </tr>
                       
                       {/* Description editing modal */}
                       {editingDescription === item.id && (
                         <tr>
-                          <td colSpan="8" className="border border-gray-400 p-3 bg-gray-50">
+                          <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="border border-gray-400 p-3 bg-gray-50">
                             <div>
                               <label className="block text-sm font-medium mb-2">Edit Description:</label>
                               <textarea
@@ -234,7 +278,7 @@ const PreviewExport = () => {
                                   ...prev,
                                   [item.id]: e.target.value
                                 }))}
-                                className="w-full h-24 p-2 border border-gray-300 rounded text-sm"
+                                className="w-full h-24 p-2 border border-gray-300 bg-white text-gray-900 rounded text-sm focus:ring-2 focus:ring-blue-500"
                               />
                               <div className="flex justify-end space-x-2 mt-2">
                                 <button
@@ -259,14 +303,14 @@ const PreviewExport = () => {
                       {editableDescriptions[item.id]?.split('\n').slice(1).map((subLine, subIndex) => (
                         subLine.trim() && (
                           <tr key={`${item.id}-${subIndex}`}>
-                            <td className="border border-gray-400 px-3 py-2"></td>
-                            <td className="border border-gray-400 px-3 py-2 pl-8">{subLine}</td>
-                            <td className="border border-gray-400 px-3 py-2 text-center">{qty.toFixed(2)}</td>
-                            <td className="border border-gray-400 px-3 py-2 text-center">{unit}</td>
-                            <td className="border border-gray-400 px-3 py-2 text-center">{item.totalKg.toFixed(2)}</td>
-                            <td className="border border-gray-400 px-3 py-2 text-center">{ratePerKg.toFixed(2)}</td>
-                            <td className="border border-gray-400 px-3 py-2 text-center">{ratePerMtr.toFixed(2)}</td>
-                            <td className="border border-gray-400 px-3 py-2 text-center">{item.lineAmount.toFixed(2)}</td>
+                            {columnVisibility.srNo && <td className="border border-gray-400 px-3 py-2 text-black">{subIndex + 1}.</td>}
+                            {columnVisibility.description && <td className="border border-gray-400 px-3 py-2 pl-8 text-black">{subLine}</td>}
+                            {columnVisibility.qty && <td className="border border-gray-400 px-3 py-2 text-center text-black">{qty.toFixed(2)}</td>}
+                            {columnVisibility.unit && <td className="border border-gray-400 px-3 py-2 text-center text-black">{unit}</td>}
+                            {columnVisibility.weight && <td className="border border-gray-400 px-3 py-2 text-center text-black">{item.totalKg.toFixed(2)}</td>}
+                            {columnVisibility.ratePerKg && <td className="border border-gray-400 px-3 py-2 text-center text-black">{ratePerKg.toFixed(2)}</td>}
+                            {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-3 py-2 text-center text-black">{ratePerMtr.toFixed(2)}</td>}
+                            {columnVisibility.amount && <td className="border border-gray-400 px-3 py-2 text-center text-black">{item.lineAmount.toFixed(2)}</td>}
                           </tr>
                         )
                       ))}
@@ -276,14 +320,14 @@ const PreviewExport = () => {
 
                 {/* Totals Row */}
                 <tr className="bg-gray-50 font-semibold">
-                  <td className="border border-gray-400 px-3 py-2"></td>
-                  <td className="border border-gray-400 px-3 py-2">TOTAL</td>
-                  <td className="border border-gray-400 px-3 py-2 text-center">{totals.totalQty.toFixed(2)}</td>
-                  <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                  <td className="border border-gray-400 px-3 py-2 text-center">{totals.totalWeight.toFixed(2)}</td>
-                  <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                  <td className="border border-gray-400 px-3 py-2 text-center"></td>
-                  <td className="border border-gray-400 px-3 py-2 text-center">{totals.netAmount.toFixed(2)}</td>
+                  {columnVisibility.srNo && <td className="border border-gray-400 px-3 py-2 text-black"></td>}
+                  {columnVisibility.description && <td className="border border-gray-400 px-3 py-2 text-black">TOTAL</td>}
+                  {columnVisibility.qty && <td className="border border-gray-400 px-3 py-2 text-center text-black">{totals.totalQty.toFixed(2)}</td>}
+                  {columnVisibility.unit && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                  {columnVisibility.weight && <td className="border border-gray-400 px-3 py-2 text-center text-black">{totals.totalWeight.toFixed(2)}</td>}
+                  {columnVisibility.ratePerKg && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                  {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-3 py-2 text-center text-black"></td>}
+                  {columnVisibility.amount && <td className="border border-gray-400 px-3 py-2 text-center text-black">{totals.netAmount.toFixed(2)}</td>}
                 </tr>
               </tbody>
             </table>
@@ -292,71 +336,75 @@ const PreviewExport = () => {
           {/* Amount Summary */}
           <div className="flex justify-end mb-6">
             <div className="w-64 text-sm">
-              <div className="flex justify-between border-b pb-1 mb-1">
-                <span>NET AMOUNT:</span>
-                <span>₹{totals.netAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-b pb-1 mb-1">
-                <span>GST {orderSettings.gst}%:</span>
-                <span>₹{totals.gstAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-semibold text-base">
-                <span>TOTAL AMOUNT:</span>
-                <span>₹{totals.totalAmount.toFixed(2)}</span>
+              <div className="flex justify-between font-semibold text-lg text-black">
+                <span className="text-black">TOTAL AMOUNT:</span>
+                <span className="text-black">₹{totals.totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {/* Terms & Conditions */}
-          <div className="text-sm">
-            <h3 className="font-semibold mb-3">TERMS & CONDITIONS:</h3>
+          <div className="text-sm text-black">
+            <h3 className="font-semibold mb-3 text-black">TERMS & CONDITIONS:</h3>
             
             {orderSettings.supplyType === SUPPLY_TYPES.GODOWN ? (
-              <div className="space-y-1">
-                <p>1. Payment term: 
-                  <select
-                    value={paymentTerm}
-                    onChange={(e) => setPaymentTerm(e.target.value)}
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded text-sm"
-                  >
-                    <option>Against Delivery</option>
-                    <option>Within 15 Days</option>
-                    <option>Within 30 Days</option>
-                    <option>50% Advance - 50% Against Delivery</option>
-                  </select>
+              <div className="space-y-1 text-black">
+                <p className="text-black">1. Payment term: 
+                  {termsAndConditions.paymentTerm === 'custom' ? (
+                    <input
+                      type="text"
+                      value={termsAndConditions.customPaymentTerm}
+                      onChange={(e) => actions.updateTermsAndConditions({ customPaymentTerm: e.target.value })}
+                      className="ml-2 px-2 py-1 border border-gray-300 bg-yellow-50 text-gray-900 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter payment term"
+                    />
+                  ) : (
+                    <select
+                      value={termsAndConditions.paymentTerm}
+                      onChange={(e) => actions.updateTermsAndConditions({ paymentTerm: e.target.value })}
+                      className="ml-2 px-2 py-1 border border-gray-300 bg-yellow-50 text-gray-900 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option>Against Delivery</option>
+                      <option>Within 15 Days</option>
+                      <option>Within 30 Days</option>
+                      <option>50% Advance - 50% Against Delivery</option>
+                      <option>100% Advance</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  )}
                 </p>
-                <p>2. +{orderSettings.gst}% GST EXTRA</p>
-                <p>3. TRANSPORT EXTRA AT ACTUAL.</p>
-                <p>4. LOADING EXTRA</p>
-                <p>5. UNLOADING EXTRA IN YOUR ACCOUNT</p>
-                <p>6. IN CASE OF INCREASE IN STEEL PRICES ABOVE RATES WILL NOT BE VALID</p>
-                <p>7. RATES VALID TILL 
+                <p className="text-black">2. +{orderSettings.gst}% GST EXTRA</p>
+                {termsAndConditions.showTransportExtra && <p className="text-black">3. TRANSPORT EXTRA AT ACTUAL.</p>}
+                {termsAndConditions.showLoadingExtra && <p className="text-black">4. LOADING EXTRA</p>}
+                <p className="text-black">5. UNLOADING EXTRA IN YOUR ACCOUNT</p>
+                <p className="text-black">6. IN CASE OF INCREASE IN STEEL PRICES ABOVE RATES WILL NOT BE VALID</p>
+                <p className="text-black">7. RATES VALID TILL 
                   <input
                     type="date"
-                    value={validTillDate}
-                    onChange={(e) => setValidTillDate(e.target.value)}
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded text-sm"
+                    value={termsAndConditions.validTillDate}
+                    onChange={(e) => actions.updateTermsAndConditions({ validTillDate: e.target.value })}
+                    className="ml-2 px-2 py-1 border border-gray-300 bg-yellow-50 text-gray-900 rounded text-sm focus:ring-2 focus:ring-blue-500"
                   />
                 </p>
-                <p>8. PIPES RATES EX- {orderSettings.godown?.toUpperCase()} GODOWN</p>
+                {termsAndConditions.showGodownLocation && <p className="text-black">8. PIPES RATES EX- {orderSettings.godown?.toUpperCase()} GODOWN</p>}
               </div>
             ) : (
-              <div className="space-y-1">
-                <p>1. Delivery: [Address to be specified]</p>
-                <p>2. Payment against proforma – 100% advance</p>
-                <p>3. Free delivery from Jindal in 20 ton multiples</p>
-                <p>4. Dead freight for part loads will be charged extra</p>
-                <p>5. Material will be dispatched from Wagholi godown</p>
-                <p>6. Unloading extra in your A/c</p>
-                <p>7. Delivery within one week from receipt of order and payment</p>
-                <p>8. Late payment charges @ 18% per annum</p>
-                <p>9. In case of increase in steel prices, above rates will not be valid</p>
-                <p>10. RATES VALID TILL 
+              <div className="space-y-1 text-black">
+                <p className="text-black">1. Delivery: [Address to be specified]</p>
+                <p className="text-black">2. Payment against proforma – 100% advance</p>
+                <p className="text-black">3. Free delivery from Jindal in 20 ton multiples</p>
+                <p className="text-black">4. Dead freight for part loads will be charged extra</p>
+                <p className="text-black">5. Material will be dispatched from Wagholi godown</p>
+                <p className="text-black">6. Unloading extra in your A/c</p>
+                <p className="text-black">7. Delivery within one week from receipt of order and payment</p>
+                <p className="text-black">8. Late payment charges @ 18% per annum</p>
+                <p className="text-black">9. In case of increase in steel prices, above rates will not be valid</p>
+                <p className="text-black">10. RATES VALID TILL 
                   <input
                     type="date"
-                    value={validTillDate}
-                    onChange={(e) => setValidTillDate(e.target.value)}
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded text-sm"
+                    value={termsAndConditions.validTillDate}
+                    onChange={(e) => actions.updateTermsAndConditions({ validTillDate: e.target.value })}
+                    className="ml-2 px-2 py-1 border border-gray-300 bg-yellow-50 text-gray-900 rounded text-sm focus:ring-2 focus:ring-blue-500"
                   />
                 </p>
               </div>

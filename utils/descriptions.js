@@ -22,7 +22,7 @@ export const generateGIDescription = (sizes, pipeClass, thickness = null) => {
   
   const header = `GI PIPE ${classText} AS PER ${isStandard} ${swsPE} MAKE ${MAKES.JINDAL}`;
   
-  const subLines = sizes.map((size, index) => `${index + 1}. ${size} NB`);
+  const subLines = sizes.map((size) => `${size} NB`);
   
   return {
     header,
@@ -49,7 +49,7 @@ export const generateMSDescription = (sizes, pipeClass, thickness = null) => {
   
   const header = `MS ERW PIPE ${classText} AS PER ${isStandard} MAKE ${MAKES.JINDAL}`;
   
-  const subLines = sizes.map((size, index) => `${index + 1}. ${size} NB`);
+  const subLines = sizes.map((size) => `${size} NB`);
   
   return {
     header,
@@ -64,7 +64,7 @@ export const generateSeamlessDescription = (sizes, schedule, make = [MAKES.MSL, 
   
   const header = `CS SEAMLESS PIPE SA 106 GR "B" ${schedule} MAKE ${makeText}`;
   
-  const subLines = sizes.map((size, index) => `${index + 1}. ${size} NB`);
+  const subLines = sizes.map((size) => `${size} NB`);
   
   return {
     header,
