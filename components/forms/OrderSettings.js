@@ -7,7 +7,7 @@ import {
   Percent,
   RadioIcon,
   Building2,
-  Truck 
+  Truck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
 import { SUPPLY_TYPES, GODOWNS, PLANTS } from '../../data/constants.js';

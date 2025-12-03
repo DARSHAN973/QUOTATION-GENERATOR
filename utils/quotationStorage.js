@@ -22,26 +22,45 @@ export const saveQuotation = (quotationData) => {
     // Create quotation object with metadata
     const quotation = {
       id: quotationData.id || generateQuotationId(),
-      createdAt: new Date().toISOString(),
+      createdAt: quotationData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      status: 'draft',
-      ...quotationData
+      status: quotationData.status || 'draft',
+      orderSettings: quotationData.orderSettings || {},
+      lineItems: quotationData.lineItems || [],
+      totals: quotationData.totals || {},
+      termsAndConditions: quotationData.termsAndConditions || {},
+      bulkCalculation: quotationData.bulkCalculation || {},
+      // Add metadata
+      version: '1.0',
+      source: 'web-app'
     };
     
     // Check if quotation already exists (update) or is new
     const existingIndex = quotations.findIndex(q => q.id === quotation.id);
     
     if (existingIndex >= 0) {
-      quotations[existingIndex] = { ...quotations[existingIndex], ...quotation, updatedAt: new Date().toISOString() };
+      quotations[existingIndex] = { 
+        ...quotations[existingIndex], 
+        ...quotation, 
+        updatedAt: new Date().toISOString() 
+      };
     } else {
       quotations.push(quotation);
     }
     
     localStorage.setItem(QUOTATIONS_STORAGE_KEY, JSON.stringify(quotations));
-    return quotation;
+    
+    return {
+      success: true,
+      quotationId: quotation.id,
+      quotation: quotation
+    };
   } catch (error) {
     console.error('Error saving quotation:', error);
-    throw new Error('Failed to save quotation');
+    return {
+      success: false,
+      error: 'Failed to save quotation'
+    };
   }
 };
 

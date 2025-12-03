@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "../styles/quotation.css";
+import { AuthProvider } from "../context/AuthContext.js";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Calculation CRM - Pipe Rate Calculator",
-  description: "Professional pipe rate calculation and quotation system for MS, GI, and Seamless pipes",
+  title: "Quotation CRM - Pipe Rate Calculator",
+  description: "Professional pipe rate calculation and quotation system with user authentication",
 };
 
 export default function RootLayout({ children }) {
@@ -22,7 +24,9 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -227,7 +227,7 @@ const createQuotationSheet = (quotationData, settings, options = {}) => {
 };
 
 // Get terms and conditions based on supply type
-const getTermsAndConditions = (orderSettings) => {
+const getTermsAndConditions = (orderSettings, termsAndConditions = {}) => {
   const terms = [];
   const currentDate = new Date();
   const validTillDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
@@ -272,11 +272,12 @@ const applyExcelFormatting = (worksheet, totalRows) => {
 };
 
 // Export quotation as Excel file
-export const exportQuotationAsExcel = (quotationData, settings, filename) => {
+export const exportQuotationAsExcel = (quotationData, settings, options = {}) => {
   try {
-    const workbook = createQuotationExcel(quotationData, settings);
+    const workbook = createQuotationExcel(quotationData, settings, options);
     
     // Generate filename if not provided
+    let filename = options.filename;
     if (!filename) {
       const currentDate = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
       filename = `quotation_${currentDate}.xlsx`;
@@ -348,12 +349,12 @@ export const createCalculationSummary = (quotationData) => {
 };
 
 // Export with multiple sheets
-export const exportDetailedQuotation = (quotationData, settings, filename) => {
+export const exportDetailedQuotation = (quotationData, settings, options = {}) => {
   try {
     const workbook = XLSX.utils.book_new();
     
     // Add main quotation sheet
-    const quotationSheet = createQuotationSheet(quotationData, settings);
+    const quotationSheet = createQuotationSheet(quotationData, settings, options);
     XLSX.utils.book_append_sheet(workbook, quotationSheet, 'Quotation');
     
     // Add calculation summary sheet
@@ -361,6 +362,7 @@ export const exportDetailedQuotation = (quotationData, settings, filename) => {
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Calculation Summary');
     
     // Generate filename if not provided
+    let filename = options.filename;
     if (!filename) {
       const currentDate = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
       filename = `detailed_quotation_${currentDate}.xlsx`;

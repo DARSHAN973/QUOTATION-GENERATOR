@@ -1,0 +1,209 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User management and authentication
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String   // Hashed password
+  name        String
+  role        String   @default("USER") // "ADMIN" or "USER"
+  isActive    Boolean  @default(true)
+  
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  lastLogin   DateTime? @map("last_login")
+  
+  // Relations
+  sessions    Session[]
+  quotations  Quotation[]
+  createdRates DynamicRate[]
+  auditLogs   AuditLog[]
+  
+  @@map("users")
+}
+
+// Session management for authentication
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// Main quotations table
+model Quotation {
+  id              String   @id @default(cuid())
+  srNo            String   @unique @map("sr_no")
+  partyName       String   @map("party_name")
+  quotationDate   DateTime @map("quotation_date")
+  status          String   @default("DRAFT") // "DRAFT", "SENT", "APPROVED", "REJECTED", "CONVERTED"
+  
+  // User ownership
+  userId          String   @map("user_id")
+  
+  // Order settings
+  supplyType      String   @map("supply_type")
+  godown          String?
+  plant           String
+  gst             Float    @default(18)
+  
+  // Bulk calculation settings (for direct supply)
+  vehicleCapacity Float?   @map("vehicle_capacity")
+  deadFreightRate Float?   @map("dead_freight_rate")
+  baseRate        Float?   @map("base_rate")
+  profitPercentage Float?  @map("profit_percentage")
+  applyToAll      Boolean  @default(false) @map("apply_to_all")
+  
+  // Terms and conditions
+  paymentTerm     String?  @map("payment_term")
+  validTillDate   DateTime? @map("valid_till_date")
+  showTransportExtra Boolean @default(true) @map("show_transport_extra")
+  showLoadingExtra Boolean @default(true) @map("show_loading_extra")
+  showGodownLocation Boolean @default(true) @map("show_godown_location")
+  customPaymentTerm String? @map("custom_payment_term")
+  
+  // Totals
+  totalQty        Float    @default(0) @map("total_qty")
+  totalWeight     Float    @default(0) @map("total_weight")
+  netAmount       Float    @default(0) @map("net_amount")
+  gstAmount       Float    @default(0) @map("gst_amount")
+  totalAmount     Float    @default(0) @map("total_amount")
+  
+  // Metadata
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  notes           String?
+  
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lineItems       LineItem[]
+  
+  @@map("quotations")
+}
+
+// Line items for each quotation
+model LineItem {
+  id              String   @id @default(cuid())
+  quotationId     String   @map("quotation_id")
+  orderIndex      Int      @map("order_index")
+  
+  // Item details
+  material        String
+  sizes           String   // JSON string of sizes array
+  pipeClass       String?  @map("pipe_class")
+  schedule        String?
+  make            String?
+  thickness       String?
+  
+  // Quantities and weights
+  totalKg         Float    @default(0) @map("total_kg")
+  totalMeters     Float    @default(0) @map("total_meters")
+  wtPerMtr        Float    @default(0) @map("wt_per_mtr")
+  
+  // Rates
+  baseRate        Float    @default(0) @map("base_rate")
+  deadFreight     Float    @default(0) @map("dead_freight")
+  profitAmount    Float    @default(0) @map("profit_amount")
+  finalRate       Float    @default(0) @map("final_rate")
+  rateBasis       String   @default("PER_KG") @map("rate_basis") // "PER_KG" or "PER_MTR"
+  
+  // Calculated amounts
+  lineAmount      Float    @default(0) @map("line_amount")
+  
+  // Custom description (if edited)
+  customDescription String? @map("custom_description")
+  
+  // Metadata
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  
+  @@map("line_items")
+}
+
+// Dynamic rates based on plant and material
+model DynamicRate {
+  id              Int      @id @default(autoincrement())
+  plant           String
+  material        String
+  pipeClass       String?  @map("pipe_class")
+  schedule        String?
+  ratePerKg       Float    @map("rate_per_kg")
+  ratePerMtr      Float?   @map("rate_per_mtr")
+  effectiveDate   DateTime @map("effective_date")
+  isActive        Boolean  @default(true) @map("is_active")
+  
+  // User who created this rate
+  createdByUserId String?  @map("created_by_user_id")
+  
+  // Metadata
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  notes           String?
+  
+  // Relations
+  createdBy       User?    @relation(fields: [createdByUserId], references: [id])
+  
+  @@unique([plant, material, pipeClass, schedule, effectiveDate])
+  @@map("dynamic_rates")
+}
+
+// Static pipe weights (offline data)
+model PipeWeight {
+  id              Int      @id @default(autoincrement())
+  material        String
+  size            String
+  pipeClass       String?  @map("pipe_class")
+  schedule        String?
+  thickness       String?
+  weightPerMtr    Float    @map("weight_per_mtr")
+  
+  // Reference data
+  standard        String?  // IS, ASTM, etc.
+  specification   String?
+  
+  // Metadata
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  @@unique([material, size, pipeClass, schedule, thickness])
+  @@map("pipe_weights")
+}
+
+// Audit log for tracking changes
+model AuditLog {
+  id              Int      @id @default(autoincrement())
+  tableName       String   @map("table_name")
+  recordId        String   @map("record_id")
+  action          String   // "INSERT", "UPDATE", "DELETE"
+  oldValues       String?  @map("old_values") // JSON string
+  newValues       String?  @map("new_values") // JSON string
+  userId          String?  @map("user_id")
+  timestamp       DateTime @default(now())
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  
+  // Relations
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  @@map("audit_log")
+}

@@ -20,6 +20,10 @@ const initialState = {
   // Quotation data
   quotation: {
     id: null, // Current quotation ID
+    partyName: '',
+    srNo: '',
+    quotationDate: new Date(),
+    status: 'draft',
     orderSettings: {
       supplyType: 'From Godown',
       godown: 'Wagholi',
@@ -50,7 +54,10 @@ const initialState = {
       showGodownLocation: true,
       customPaymentTerm: ''
     }
-  }
+  },
+  
+  // Saved quotations
+  savedQuotations: []
 };
 
 // Action types
@@ -58,6 +65,7 @@ const actionTypes = {
   SET_ACTIVE_TAB: 'SET_ACTIVE_TAB',
   UPDATE_SETTINGS: 'UPDATE_SETTINGS',
   UPDATE_PRICE_LIST: 'UPDATE_PRICE_LIST',
+  UPDATE_QUOTATION_HEADER: 'UPDATE_QUOTATION_HEADER',
   UPDATE_ORDER_SETTINGS: 'UPDATE_ORDER_SETTINGS',
   ADD_LINE_ITEM: 'ADD_LINE_ITEM',
   UPDATE_LINE_ITEM: 'UPDATE_LINE_ITEM',
@@ -90,6 +98,12 @@ const appReducer = (state, action) => {
       return {
         ...state,
         priceList: action.payload
+      };
+      
+    case actionTypes.UPDATE_QUOTATION_HEADER:
+      return {
+        ...state,
+        quotation: { ...state.quotation, ...action.payload }
       };
       
     case actionTypes.UPDATE_ORDER_SETTINGS:
@@ -220,6 +234,8 @@ export const AppProvider = ({ children }) => {
     updateSettings: (settings) => dispatch({ type: actionTypes.UPDATE_SETTINGS, payload: settings }),
     
     updatePriceList: (priceList) => dispatch({ type: actionTypes.UPDATE_PRICE_LIST, payload: priceList }),
+    
+    updateQuotationHeader: (headerData) => dispatch({ type: actionTypes.UPDATE_QUOTATION_HEADER, payload: headerData }),
     
     updateOrderSettings: (settings) => dispatch({ type: actionTypes.UPDATE_ORDER_SETTINGS, payload: settings }),
     

@@ -1,0 +1,115 @@
+/* Print styles for quotations */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .quotation-preview,
+  .quotation-preview * {
+    visibility: visible;
+  }
+  
+  .quotation-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  .print-hidden {
+    display: none !important;
+  }
+  
+  .print-text-black,
+  .print-text-black * {
+    color: #000 !important;
+  }
+  
+  /* A4 Page Setup */
+  @page {
+    size: A4;
+    margin: 0.5in;
+  }
+  
+  /* Company letterhead */
+  .company-letterhead {
+    page-break-inside: avoid;
+  }
+  
+  /* Avoid breaking tables */
+  table {
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure terms section stays together */
+  .terms-section {
+    page-break-inside: avoid;
+  }
+}
+
+/* Quotation specific styles */
+.quotation-preview {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #000;
+}
+
+.quotation-preview h1,
+.quotation-preview h2,
+.quotation-preview h3 {
+  color: #000;
+}
+
+.quotation-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+  color: #000;
+}
+
+.quotation-preview th,
+.quotation-preview td {
+  border: 1px solid #000;
+  padding: 8px;
+  text-align: left;
+  color: #000;
+}
+
+.quotation-preview th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+/* Company letterhead styles */
+.company-letterhead {
+  color: #000000;
+  background-color: #ffffff;
+}
+
+.company-letterhead * {
+  color: #000000 !important;
+  background-color: transparent !important;
+}
+
+/* PDF export compatibility */
+.quotation-preview * {
+  color: #000000 !important;
+  background-color: transparent !important;
+}
+
+.quotation-preview .bg-gray-50 {
+  background-color: #f9f9f9 !important;
+}
+
+.quotation-preview .bg-gray-100 {
+  background-color: #f3f3f3 !important;
+}
+
+.quotation-preview .border-gray-400 {
+  border-color: #000000 !important;
+}
