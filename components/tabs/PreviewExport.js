@@ -56,13 +56,19 @@ const PreviewExport = () => {
     const descriptions = {};
     lineItems.forEach(item => {
       if (!editableDescriptions[item.id]) {
-        const desc = generateDescription(item.material, item.sizes, {
-          pipeClass: item.pipeClass,
-          schedule: item.schedule,
-          make: item.make,
-          thickness: item.thickness
-        });
-        descriptions[item.id] = desc.fullDescription;
+        if (item.itemType === 'heading') {
+          // For heading items, use the heading text as description
+          descriptions[item.id] = item.headingText || 'Heading Item';
+        } else {
+          // For sub-items, generate normal description
+          const desc = generateDescription(item.material, item.sizes, {
+            pipeClass: item.pipeClass,
+            schedule: item.schedule,
+            make: item.make,
+            thickness: item.thickness
+          });
+          descriptions[item.id] = desc.fullDescription;
+        }
       }
     });
     setEditableDescriptions(prev => ({ ...prev, ...descriptions }));
@@ -397,6 +403,28 @@ const PreviewExport = () => {
           {/* Company Letterhead */}
           <CompanyLetterhead />
 
+          {/* Quotation Details Section */}
+          <div className="mb-6 border border-gray-400 p-4 bg-gray-50">
+            <div className="grid grid-cols-2 gap-4 text-sm text-black">
+              <div>
+                <span className="font-semibold">Quotation No: </span>
+                <span>{orderSettings.quotationNumber || orderSettings.srNumber || 'DEC001'}</span>
+              </div>
+              <div>
+                <span className="font-semibold">Date: </span>
+                <span>{format(new Date(), 'dd/MM/yyyy')}</span>
+              </div>
+              <div>
+                <span className="font-semibold">Supply Type: </span>
+                <span>{orderSettings.supplyType || 'From Godown'}</span>
+              </div>
+              <div>
+                <span className="font-semibold">Godown: </span>
+                <span>{orderSettings.godown || 'Wagholi'}</span>
+              </div>
+            </div>
+          </div>
+
           {/* Intro Text */}
           <div className="mb-6 text-sm text-black">
             <p className="mb-2 text-black">Respected Sir,</p>
@@ -420,16 +448,39 @@ const PreviewExport = () => {
                 </tr>
               </thead>
               <tbody>
-                {lineItems.map((item, index) => {
-                  const qty = item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
-                  const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
-                  const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : item.finalRate / item.wtPerMtr;
-                  const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : item.finalRate * item.wtPerMtr;
+                {(() => {
+                  let currentHeading = null;
+                  let subItemCounter = 0;
+                  
+                  return lineItems.map((item, index) => {
+                    // Handle heading items
+                    if (item.itemType === 'heading') {
+                      currentHeading = String.fromCharCode(65 + Math.floor(index / 10)); // A, B, C...
+                      subItemCounter = 0;
+                      return (
+                        <tr key={item.id} className="bg-gray-100">
+                          {columnVisibility.srNo && (
+                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold">
+                              {currentHeading}.
+                            </td>
+                          )}
+                          {columnVisibility.description && (
+                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
+                              {editableDescriptions[item.id] || item.headingText || 'Heading Item'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+                    
+                    // Handle sub-items
+                    subItemCounter++;
+                    const qty = item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
+                    const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
+                    const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : item.finalRate / item.wtPerMtr;
+                    const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : item.finalRate * item.wtPerMtr;
 
-                  // Generate main SR NO as A, B, C...
-                  const mainSrNo = String.fromCharCode(65 + index); // A, B, C, D...
-
-                  return (
+                    return (
                     <React.Fragment key={item.id}>
                       {/* Header Row */}
                       <tr>
@@ -554,6 +605,18 @@ const PreviewExport = () => {
                 <p className="text-black">6. IN CASE OF INCREASE IN STEEL PRICES ABOVE RATES WILL NOT BE VALID</p>
                 <p className="text-black">7. RATES VALID TILL {termsAndConditions.validTillDate ? format(new Date(termsAndConditions.validTillDate), 'dd/MM/yyyy') : format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy')}</p>
                 {termsAndConditions.showGodownLocation && <p className="text-black">8. PIPES RATES EX- {orderSettings.godown?.toUpperCase() || 'WAGHOLI'} GODOWN</p>}
+                {(() => {
+                  const discountItems = lineItems.filter(item => item.discountMode === 'show' && item.discountPercent > 0);
+                  if (discountItems.length > 0) {
+                    const totalDiscount = discountItems.reduce((sum, item) => sum + (item.lineAmount * item.discountPercent / 100), 0);
+                    return (
+                      <p className="text-black font-medium">
+                        {termsAndConditions.showGodownLocation ? '9' : '8'}. DISCOUNT: {totalDiscount.toFixed(2)} ({discountItems.map(item => `${item.discountPercent}%`).join(', ')})
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             ) : (
               <div className="space-y-2 text-black">
@@ -567,6 +630,18 @@ const PreviewExport = () => {
                 <p className="text-black">8. Late payment charges @ 18% per annum</p>
                 <p className="text-black">9. In case of increase in steel prices, above rates will not be valid</p>
                 <p className="text-black">10. RATES VALID TILL {termsAndConditions.validTillDate ? format(new Date(termsAndConditions.validTillDate), 'dd/MM/yyyy') : format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy')}</p>
+                {(() => {
+                  const discountItems = lineItems.filter(item => item.discountMode === 'show' && item.discountPercent > 0);
+                  if (discountItems.length > 0) {
+                    const totalDiscount = discountItems.reduce((sum, item) => sum + (item.lineAmount * item.discountPercent / 100), 0);
+                    return (
+                      <p className="text-black font-medium">
+                        11. DISCOUNT: ₹{totalDiscount.toFixed(2)} ({discountItems.map(item => `${item.discountPercent}%`).join(', ')})
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>

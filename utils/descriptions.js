@@ -3,7 +3,7 @@
 import { MATERIALS, CLASSES, MAKES } from '../data/constants.js';
 
 // Generate description for GI Pipe
-export const generateGIDescription = (sizes, pipeClass, thickness = null) => {
+export const generateGIDescription = (sizes, pipeClass, thickness = null, make = MAKES.JINDAL) => {
   const minSize = Math.min(...sizes);
   const maxSize = Math.max(...sizes);
   
@@ -20,7 +20,7 @@ export const generateGIDescription = (sizes, pipeClass, thickness = null) => {
     swsPE = pipeClass === CLASSES.MEDIUM ? 'SWS' : 'P/E';
   }
   
-  const header = `GI PIPE ${classText} AS PER ${isStandard} ${swsPE} MAKE ${MAKES.JINDAL}`;
+  const header = `GI PIPE ${classText} AS PER ${isStandard} ${swsPE} MAKE ${make}`;
   
   const subLines = sizes.map((size) => `${size} NB`);
   
@@ -32,7 +32,7 @@ export const generateGIDescription = (sizes, pipeClass, thickness = null) => {
 };
 
 // Generate description for MS Pipe
-export const generateMSDescription = (sizes, pipeClass, thickness = null) => {
+export const generateMSDescription = (sizes, pipeClass, thickness = null, make = MAKES.JINDAL) => {
   const minSize = Math.min(...sizes);
   const maxSize = Math.max(...sizes);
   
@@ -47,7 +47,7 @@ export const generateMSDescription = (sizes, pipeClass, thickness = null) => {
     classText = pipeClass === CLASSES.MEDIUM ? 'B CLASS' : 'C CLASS';
   }
   
-  const header = `MS ERW PIPE ${classText} AS PER ${isStandard} MAKE ${MAKES.JINDAL}`;
+  const header = `MS ERW PIPE ${classText} AS PER ${isStandard} MAKE ${make}`;
   
   const subLines = sizes.map((size) => `${size} NB`);
   
@@ -76,13 +76,14 @@ export const generateSeamlessDescription = (sizes, schedule, make = [MAKES.MSL, 
 // Main function to generate description based on material type
 export const generateDescription = (material, sizes, options = {}) => {
   const sortedSizes = [...sizes].sort((a, b) => a - b);
+  const make = options.make && Array.isArray(options.make) ? options.make[0] : options.make;
   
   switch (material) {
     case MATERIALS.GI:
-      return generateGIDescription(sortedSizes, options.pipeClass, options.thickness);
+      return generateGIDescription(sortedSizes, options.pipeClass, options.thickness, make);
     
     case MATERIALS.MS:
-      return generateMSDescription(sortedSizes, options.pipeClass, options.thickness);
+      return generateMSDescription(sortedSizes, options.pipeClass, options.thickness, make);
     
     case MATERIALS.SEAMLESS:
       return generateSeamlessDescription(sortedSizes, options.schedule, options.make);

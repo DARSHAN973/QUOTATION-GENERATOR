@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   Warehouse, 
   Factory, 
@@ -10,12 +10,29 @@ import {
   Truck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
-import { SUPPLY_TYPES, GODOWNS, PLANTS } from '../../data/constants.js';
+import { SUPPLY_TYPES, GODOWNS } from '../../data/constants.js';
 import { clsx } from 'clsx';
 
 const OrderSettings = () => {
   const { state, actions } = useApp();
   const { orderSettings } = state.quotation;
+
+  // Generate next SR number when component mounts
+  useEffect(() => {
+    if (!orderSettings.quotationNumber) {
+      const lastSrNumber = localStorage.getItem('lastSrNumber');
+      const currentMonth = new Date().toLocaleString('default', { month: 'short' }).toUpperCase();
+      const nextNumber = lastSrNumber ? parseInt(lastSrNumber) + 1 : 1;
+      const srNumber = `${currentMonth}${nextNumber.toString().padStart(3, '0')}`;
+      
+      actions.updateOrderSettings({ 
+        quotationNumber: srNumber,
+        srNumber: srNumber 
+      });
+      
+      localStorage.setItem('lastSrNumber', nextNumber.toString());
+    }
+  }, []);
 
   const handleSupplyTypeChange = (supplyType) => {
     actions.updateOrderSettings({ supplyType });
@@ -23,10 +40,6 @@ const OrderSettings = () => {
 
   const handleGodownChange = (godown) => {
     actions.updateOrderSettings({ godown });
-  };
-
-  const handlePlantChange = (plant) => {
-    actions.updateOrderSettings({ plant });
   };
 
   return (
@@ -41,7 +54,7 @@ const OrderSettings = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Supply Type */}
         <div className="lg:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -103,27 +116,6 @@ const OrderSettings = () => {
           </div>
         )}
 
-        {/* Plant Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Plant (Reference)
-          </label>
-          <select
-            value={orderSettings.plant}
-            onChange={(e) => handlePlantChange(e.target.value)}
-            className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-          >
-            {PLANTS.map((plant) => (
-              <option key={plant} value={plant}>
-                {plant}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            For description reference only
-          </p>
-        </div>
-
         {/* GST Percentage - Fixed */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -152,7 +144,7 @@ const OrderSettings = () => {
               {orderSettings.supplyType === SUPPLY_TYPES.GODOWN && (
                 <span> from {orderSettings.godown}</span>
               )}
-              , Plant: {orderSettings.plant}, GST: {orderSettings.gst}%
+              Supply: {orderSettings.supplyType}, Godown: {orderSettings.godown}, GST: {orderSettings.gst}%
             </span>
           </div>
         </div>

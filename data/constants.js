@@ -35,6 +35,14 @@ export const MAKES = {
   JINDAL: 'JINDAL',
   MSL: 'MSL',
   KFIL: 'KFIL',
+  HISSAR: 'HISSAR',
+  STAR: 'STAR',
+};
+
+// Plant specific makes - simplified based on supply type only
+export const PLANT_MAKES = {
+  'From Godown': ['HISSAR', 'STAR'],
+  'Direct From Jindal': ['JINDAL', 'MSL', 'KFIL'],
 };
 
 // Pipe sizes (NB)
@@ -46,12 +54,6 @@ export const PIPE_SIZES = [
 export const GODOWNS = {
   WAGHOLI: 'Wagholi',
 };
-
-// Plants
-export const PLANTS = [
-  'Hissar',
-  'Star'
-];
 
 // Supply types
 export const SUPPLY_TYPES = {

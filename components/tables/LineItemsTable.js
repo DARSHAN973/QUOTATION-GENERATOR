@@ -17,7 +17,6 @@ import {
   MATERIALS, 
   CLASSES, 
   SCHEDULES, 
-  MAKES, 
   PIPE_SIZES, 
   LENGTH_MODES, 
   RATE_BASIS, 
@@ -34,7 +33,6 @@ import {
   calculateRatePerMtr,
   applyDiscount,
   calculateLineAmount,
-  isBelowCost,
   roundTo
 } from '../../utils/calculations.js';
 
@@ -45,17 +43,20 @@ const LineItemsTable = () => {
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [discountMode, setDiscountMode] = useState('hide'); // 'show' = in T&C, 'hide' = apply to price
   const [formData, setFormData] = useState(getInitialFormData());
 
   function getInitialFormData() {
     return {
       id: Date.now(),
+      itemType: 'sub-item', // 'heading' or 'sub-item'
+      headingText: '', // For heading items
       material: MATERIALS.MS,
+      make: 'Jindal', // Auto-set based on material
       pipeClass: CLASSES.MEDIUM,
       thickness: '', // For pipes 200NB and above
       sizes: [50],
       schedule: 'SCH-40',
-      make: [MAKES.JINDAL],
       lengthMode: LENGTH_MODES.PIPES,
       pipeCount: 100,
       totalMeters: 0,
@@ -64,11 +65,28 @@ const LineItemsTable = () => {
       rateBasis: RATE_BASIS.PER_MTR,
       baseRate: 0,
       discountPercent: 0,
+      discountMode: 'hide', // 'show' = show in T&C, 'hide' = apply to price directly
       finalRate: 0,
       lineAmount: 0,
-      remark: '',
     };
   }
+
+  // Auto-set make based on material
+  const autoSetMake = (material) => {
+    if (material === MATERIALS.SEAMLESS) {
+      return 'MSL/KFIL';
+    } else {
+      return 'Jindal'; // For MS and GI
+    }
+  };
+
+  // Update make when material changes
+  useEffect(() => {
+    const newMake = autoSetMake(formData.material);
+    if (formData.make !== newMake) {
+      setFormData(prev => ({ ...prev, make: newMake }));
+    }
+  }, [formData.material]);
 
   // Calculate derived values when form data changes
   useEffect(() => {
@@ -82,7 +100,8 @@ const LineItemsTable = () => {
     formData.totalKg,
     formData.rateBasis,
     formData.baseRate,
-    formData.discountPercent
+    formData.discountPercent,
+    formData.discountMode
   ]);
 
   const calculateDerivedValues = () => {
@@ -132,8 +151,10 @@ const LineItemsTable = () => {
       displayRate = calculateRatePerKg(baseRate, wtPerMtr);
     }
 
-    // Apply discount
-    const finalRate = applyDiscount(displayRate, formData.discountPercent);
+    // Apply discount only if discountMode is 'hide' (apply to price)
+    const finalRate = formData.discountMode === 'hide' ? 
+      applyDiscount(displayRate, formData.discountPercent) : 
+      displayRate;
 
     // Calculate line amount
     const quantity = formData.rateBasis === RATE_BASIS.PER_MTR ? totalMeters : totalKg;
@@ -151,7 +172,9 @@ const LineItemsTable = () => {
   };
 
   const handleAddItem = () => {
-    if (formData.sizes.length === 0) return;
+    // For sub-items, validate sizes; for headings, validate heading text
+    if (formData.itemType === 'sub-item' && formData.sizes.length === 0) return;
+    if (formData.itemType === 'heading' && !formData.headingText.trim()) return;
     
     const newItem = { ...formData, id: Date.now() };
     actions.addLineItem(newItem);
@@ -186,10 +209,13 @@ const LineItemsTable = () => {
   };
 
   const updateTotals = (items) => {
+    // Only calculate totals for sub-items, not heading items
     const totals = items.reduce((acc, item) => {
-      acc.totalQty += item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
-      acc.totalWeight += item.totalKg;
-      acc.netAmount += item.lineAmount;
+      if (item.itemType !== 'heading') {
+        acc.totalQty += item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
+        acc.totalWeight += item.totalKg;
+        acc.netAmount += item.lineAmount;
+      }
       return acc;
     }, { totalQty: 0, totalWeight: 0, netAmount: 0 });
 
@@ -197,25 +223,6 @@ const LineItemsTable = () => {
     totals.totalAmount = totals.netAmount + totals.gstAmount;
 
     actions.updateTotals(totals);
-  };
-
-  const getCostRate = () => {
-    // Get rate based on plant, material, and class
-    let pipeClass = 'MEDIUM';
-    if (formData.material !== MATERIALS.SEAMLESS) {
-      pipeClass = formData.pipeClass === CLASSES.HEAVY ? 'HEAVY' : 'MEDIUM';
-    }
-    
-    const priceData = getPriceListData(orderSettings.plant, formData.material, pipeClass, formData.sizes[0]);
-    if (!priceData) return 0;
-    
-    const costRate = orderSettings.godown === GODOWNS.WAGHOLI 
-      ? priceData.wagholiRate 
-      : priceData.puneRate;
-    
-    return formData.rateBasis === RATE_BASIS.PER_KG 
-      ? calculateRatePerKg(costRate, formData.wtPerMtr)
-      : costRate;
   };
 
   const renderAddForm = () => (
@@ -236,7 +243,38 @@ const LineItemsTable = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {/* Item Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Item Type</label>
+          <select
+            value={formData.itemType}
+            onChange={(e) => setFormData(prev => ({ ...prev, itemType: e.target.value }))}
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="heading">Heading</option>
+            <option value="sub-item">Sub Item</option>
+          </select>
+        </div>
+
+        {/* Heading Text - Only for heading items */}
+        {formData.itemType === 'heading' && (
+          <div className="md:col-span-2 lg:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Heading Text</label>
+            <input
+              type="text"
+              value={formData.headingText}
+              onChange={(e) => setFormData(prev => ({ ...prev, headingText: e.target.value }))}
+              placeholder="e.g., MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal"
+              className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Sub-item fields - Only for sub-items */}
+      {formData.itemType === 'sub-item' && (
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
         {/* Material */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Material</label>
@@ -249,6 +287,18 @@ const LineItemsTable = () => {
               <option key={material} value={material}>{material}</option>
             ))}
           </select>
+        </div>
+
+        {/* Make - Auto-set, read-only display */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
+          <input
+            type="text"
+            value={formData.make}
+            readOnly
+            className="w-full px-3 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md cursor-not-allowed"
+            title="Make is automatically set based on material"
+          />
         </div>
 
         {/* Class/Type/Thickness */}
@@ -302,68 +352,47 @@ const LineItemsTable = () => {
           </select>
         </div>
 
-        {/* Quantity Unit */}
+        {/* Quantity with Unit */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Quantity Unit</label>
-          <select
-            value={formData.lengthMode}
-            onChange={(e) => setFormData(prev => ({ ...prev, lengthMode: e.target.value }))}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {Object.values(LENGTH_MODES).map(mode => (
-              <option key={mode} value={mode}>{mode}</option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 mt-1">How do you want to specify the quantity?</p>
-        </div>
-
-        {/* Quantity Input */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Quantity
-          </label>
-          <input
-            type="number"
-            value={
-              formData.lengthMode === LENGTH_MODES.PIPES ? formData.pipeCount :
-              formData.lengthMode === LENGTH_MODES.METERS ? formData.totalMeters : formData.totalKg
-            }
-            onChange={(e) => {
-              const value = parseFloat(e.target.value) || 0;
-              if (formData.lengthMode === LENGTH_MODES.PIPES) {
-                setFormData(prev => ({ ...prev, pipeCount: value }));
-              } else if (formData.lengthMode === LENGTH_MODES.METERS) {
-                setFormData(prev => ({ ...prev, totalMeters: value }));
-              } else {
-                setFormData(prev => ({ ...prev, totalKg: value }));
+          <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+          <div className="flex space-x-2">
+            <input
+              type="number"
+              value={
+                formData.lengthMode === LENGTH_MODES.PIPES ? formData.pipeCount :
+                formData.lengthMode === LENGTH_MODES.METERS ? formData.totalMeters : formData.totalKg
               }
-            }}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            min="0"
-            placeholder={
-              formData.lengthMode === LENGTH_MODES.PIPES ? 'Enter number of pipes' :
-              formData.lengthMode === LENGTH_MODES.METERS ? 'Enter total meters' : 'Enter total weight in kg'
-            }
-          />
-        </div>
-
-        {/* Rate Basis */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Rate Basis</label>
-          <select
-            value={formData.rateBasis}
-            onChange={(e) => setFormData(prev => ({ ...prev, rateBasis: e.target.value }))}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {Object.values(RATE_BASIS).map(basis => (
-              <option key={basis} value={basis}>{basis}</option>
-            ))}
-          </select>
+              onChange={(e) => {
+                const value = parseFloat(e.target.value) || 0;
+                if (formData.lengthMode === LENGTH_MODES.PIPES) {
+                  setFormData(prev => ({ ...prev, pipeCount: value }));
+                } else if (formData.lengthMode === LENGTH_MODES.METERS) {
+                  setFormData(prev => ({ ...prev, totalMeters: value }));
+                } else {
+                  setFormData(prev => ({ ...prev, totalKg: value }));
+                }
+              }}
+              className="flex-1 px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              min="0"
+              placeholder="Enter quantity"
+            />
+            <select
+              value={formData.lengthMode}
+              onChange={(e) => setFormData(prev => ({ ...prev, lengthMode: e.target.value }))}
+              className="w-28 px-2 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value={LENGTH_MODES.PIPES}>Pipes</option>
+              <option value={LENGTH_MODES.METERS}>Mtrs</option>
+              <option value={LENGTH_MODES.KGS}>Kgs</option>
+            </select>
+          </div>
         </div>
       </div>
+      )}
 
-      {/* Second row with calculations and rates */}
-      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-4">
+      {/* Second row with calculations and rates - Only for sub-items */}
+      {formData.itemType === 'sub-item' && (
+      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Wt/Mtr</label>
           <input
@@ -395,7 +424,20 @@ const LineItemsTable = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+          <select
+            value={formData.rateBasis}
+            onChange={(e) => setFormData(prev => ({ ...prev, rateBasis: e.target.value }))}
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {Object.values(RATE_BASIS).map(basis => (
+              <option key={basis} value={basis}>{basis}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Price List</label>
           <input
             type="number"
             value={formData.baseRate}
@@ -406,7 +448,31 @@ const LineItemsTable = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">Discount %</label>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDiscountMode('show');
+                  setFormData(prev => ({ ...prev, discountMode: 'show' }));
+                }}
+                className={`text-xs px-2 py-1 rounded ${discountMode === 'show' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+              >
+                Show in T&C
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDiscountMode('hide');
+                  setFormData(prev => ({ ...prev, discountMode: 'hide' }));
+                }}
+                className={`text-xs px-2 py-1 rounded ${discountMode === 'hide' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+              >
+                Apply to Price
+              </button>
+            </div>
+          </div>
           <input
             type="number"
             value={formData.discountPercent}
@@ -414,29 +480,25 @@ const LineItemsTable = () => {
             className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             min="0"
             max="50"
+            placeholder="Enter discount %"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            {discountMode === 'show' ? 'Will show in Terms & Conditions' : 'Will be applied to final price'}
+          </p>
         </div>
 
-        <div className="relative">
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Final Rate</label>
           <input
             type="number"
             value={formData.finalRate}
             readOnly
-            className={clsx(
-              "w-full px-3 py-2 border rounded-md",
-              isBelowCost(formData.finalRate, getCostRate()) 
-                ? "border-red-300 bg-red-50 text-gray-900" 
-                : "border-gray-300 bg-white text-gray-900"
-            )}
+            className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-md"
           />
-          {isBelowCost(formData.finalRate, getCostRate()) && (
-            <AlertTriangle className="absolute right-2 top-8 w-4 h-4 text-red-500" />
-          )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Line Amount</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
           <input
             type="number"
             value={formData.lineAmount}
@@ -444,32 +506,10 @@ const LineItemsTable = () => {
             className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
           />
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Remark</label>
-          <input
-            type="text"
-            value={formData.remark}
-            onChange={(e) => setFormData(prev => ({ ...prev, remark: e.target.value }))}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Optional"
-          />
-        </div>
       </div>
-
-      {/* Warning if below cost */}
-      {isBelowCost(formData.finalRate, getCostRate()) && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-            <span className="text-sm text-red-700 font-medium">
-              Warning: Rate is below cost - this will result in loss!
-            </span>
-          </div>
-        </div>
       )}
 
-      {/* Form Actions */}
+      {/* Add Item Button */}
       <div className="flex justify-end space-x-4 mt-6">
         <button
           onClick={() => {
@@ -532,18 +572,47 @@ const LineItemsTable = () => {
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">Material</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">Size</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Qty</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Rate</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Price List</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Discount</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Final Rate</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Amount</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-700">Total Amount</th>
                 <th className="text-center px-4 py-3 text-sm font-medium text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
               {lineItems.map((item) => {
-                const costRate = getCostRate();
-                const isBelowCostRate = isBelowCost(item.finalRate, costRate);
+                // Render heading items differently
+                if (item.itemType === 'heading') {
+                  return (
+                    <tr key={item.id} className="border-b border-gray-200 bg-blue-50">
+                      <td colSpan="7" className="px-4 py-3">
+                        <div className="font-bold text-gray-900 text-lg">
+                          {item.headingText || 'Heading Item'}
+                        </div>
+                      </td>
+                      <td className="text-center px-4 py-3">
+                        <div className="flex space-x-2 justify-center">
+                          <button
+                            onClick={() => handleEditItem(item.id)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
                 
+                // Render sub-items normally
                 return (
                   <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -574,14 +643,8 @@ const LineItemsTable = () => {
                     <td className="px-4 py-3 text-right text-gray-900">
                       {item.discountPercent}%
                     </td>
-                    <td className={clsx(
-                      "px-4 py-3 text-right",
-                      isBelowCostRate ? "text-red-600 font-medium" : "text-gray-900"
-                    )}>
-                      <div className="flex items-center justify-end space-x-1">
-                        <span>₹{item.finalRate.toFixed(2)}</span>
-                        {isBelowCostRate && <AlertTriangle className="w-3 h-3 text-red-500" />}
-                      </div>
+                    <td className="px-4 py-3 text-right text-gray-900">
+                      ₹{item.finalRate.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-gray-900">
                       ₹{item.lineAmount.toFixed(2)}
@@ -603,7 +666,7 @@ const LineItemsTable = () => {
                       </div>
                     </td>
                   </tr>
-                );
+                ); // End of sub-item rendering
               })}
             </tbody>
           </table>
