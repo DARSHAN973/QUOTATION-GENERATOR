@@ -45,6 +45,73 @@ export const PLANT_MAKES = {
   'Direct From Jindal': ['JINDAL', 'MSL', 'KFIL'],
 };
 
+// Predefined heading templates with their sub-item configurations
+export const HEADING_TEMPLATES = {
+  'MS_B_IS1239': {
+    id: 'MS_B_IS1239',
+    text: 'MS ERW PIPE B CLASS AS PER IS1239 MAKE JINDAL',
+    material: 'MS',
+    make: 'JINDAL',
+    pipeClass: 'Medium (B Class)',
+    standard: 'IS1239',
+    availableSizes: [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150], // 15NB to 150NB
+  },
+  'MS_B_IS3589': {
+    id: 'MS_B_IS3589',
+    text: 'MS ERW PIPE B CLASS AS PER IS3589 MAKE JINDAL',
+    material: 'MS',
+    make: 'JINDAL',
+    pipeClass: 'Medium (B Class)',
+    standard: 'IS3589',
+    availableSizes: [200, 250, 300, 350, 400, 450, 500, 600], // 200NB to 600NB
+  },
+  'MS_C_IS1239': {
+    id: 'MS_C_IS1239',
+    text: 'MS ERW PIPE C CLASS AS PER IS1239 MAKE JINDAL',
+    material: 'MS',
+    make: 'JINDAL',
+    pipeClass: 'Heavy (C Class)',
+    standard: 'IS1239',
+    availableSizes: [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150], // 15NB to 150NB
+  },
+  'MS_C_IS3589': {
+    id: 'MS_C_IS3589',
+    text: 'MS ERW PIPE C CLASS AS PER IS3589 MAKE JINDAL',
+    material: 'MS',
+    make: 'JINDAL',
+    pipeClass: 'Heavy (C Class)',
+    standard: 'IS3589',
+    availableSizes: [200, 250, 300, 350, 400, 450, 500, 600], // 200NB to 600NB
+  },
+  'GI_B_IS1239': {
+    id: 'GI_B_IS1239',
+    text: 'GI PIPE B CLASS IS1239 SWS MAKE JINDAL',
+    material: 'GI',
+    make: 'JINDAL',
+    pipeClass: 'Medium (B Class)',
+    standard: 'IS1239',
+    availableSizes: [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150], // 15NB to 150NB
+  },
+  'GI_C_PE': {
+    id: 'GI_C_PE',
+    text: 'GI PIPE C CLASS P/E MAKE JINDAL',
+    material: 'GI',
+    make: 'JINDAL',
+    pipeClass: 'Heavy (C Class)',
+    standard: 'PE',
+    availableSizes: [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150], // 15NB to 150NB
+  },
+  'SEAMLESS_SA106': {
+    id: 'SEAMLESS_SA106',
+    text: 'CS SEAMLESS PIPE AS PER SA106 GRADE B MAKE MSL/KFIL',
+    material: 'Seamless',
+    make: 'MSL/KFIL',
+    pipeClass: '', // Not applicable for seamless
+    standard: 'SA106',
+    availableSizes: [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600], // All sizes
+  },
+};
+
 // Pipe sizes (NB)
 export const PIPE_SIZES = [
   15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600

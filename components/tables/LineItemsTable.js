@@ -22,7 +22,8 @@ import {
   RATE_BASIS, 
   DEFAULT_PIPE_LENGTH,
   SUPPLY_TYPES,
-  GODOWNS 
+  GODOWNS,
+  HEADING_TEMPLATES
 } from '../../data/constants.js';
 import { getPriceListData } from '../../data/priceList.js';
 import {
@@ -45,6 +46,8 @@ const LineItemsTable = () => {
   const [editingId, setEditingId] = useState(null);
   const [discountMode, setDiscountMode] = useState('hide'); // 'show' = in T&C, 'hide' = apply to price
   const [formData, setFormData] = useState(getInitialFormData());
+  const [selectedHeadingTemplate, setSelectedHeadingTemplate] = useState('');
+  const [availableSizes, setAvailableSizes] = useState(PIPE_SIZES);
 
   function getInitialFormData() {
     return {
@@ -87,6 +90,47 @@ const LineItemsTable = () => {
       setFormData(prev => ({ ...prev, make: newMake }));
     }
   }, [formData.material]);
+
+  // Handle heading template selection
+  const handleHeadingTemplateSelect = (templateId) => {
+    if (!templateId) {
+      setSelectedHeadingTemplate('');
+      setAvailableSizes(PIPE_SIZES);
+      return;
+    }
+
+    const template = HEADING_TEMPLATES[templateId];
+    if (template) {
+      setSelectedHeadingTemplate(templateId);
+      setAvailableSizes(template.availableSizes);
+      
+      if (formData.itemType === 'heading') {
+        // Update heading with template text
+        setFormData(prev => ({
+          ...prev,
+          headingText: template.text,
+          material: template.material,
+          make: template.make,
+          pipeClass: template.pipeClass || CLASSES.MEDIUM,
+        }));
+      } else if (formData.itemType === 'sub-item') {
+        // Update sub-item with template defaults
+        setFormData(prev => ({
+          ...prev,
+          material: template.material,
+          make: template.make,
+          pipeClass: template.pipeClass || CLASSES.MEDIUM,
+          sizes: template.availableSizes.length > 0 ? [template.availableSizes[0]] : [50],
+        }));
+      }
+    }
+  };
+
+  // Reset template selection when item type changes
+  useEffect(() => {
+    setSelectedHeadingTemplate('');
+    setAvailableSizes(PIPE_SIZES);
+  }, [formData.itemType]);
 
   // Calculate derived values when form data changes
   useEffect(() => {
@@ -257,20 +301,55 @@ const LineItemsTable = () => {
           </select>
         </div>
 
-        {/* Heading Text - Only for heading items */}
-        {formData.itemType === 'heading' && (
-          <div className="md:col-span-2 lg:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Heading Text</label>
-            <input
-              type="text"
-              value={formData.headingText}
-              onChange={(e) => setFormData(prev => ({ ...prev, headingText: e.target.value }))}
-              placeholder="e.g., MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal"
-              className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        )}
+        {/* Heading Template Selector */}
+        <div className="md:col-span-2 lg:col-span-3">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {formData.itemType === 'heading' ? 'Select Heading Template' : 'Select Item Category (sets material, make, sizes)'}
+          </label>
+          <select
+            value={selectedHeadingTemplate}
+            onChange={(e) => handleHeadingTemplateSelect(e.target.value)}
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Select a template...</option>
+            <option value="MS_B_IS1239">MS ERW PIPE B CLASS AS PER IS1239 MAKE JINDAL (15-150 NB)</option>
+            <option value="MS_B_IS3589">MS ERW PIPE B CLASS AS PER IS3589 MAKE JINDAL (200-600 NB)</option>
+            <option value="MS_C_IS1239">MS ERW PIPE C CLASS AS PER IS1239 MAKE JINDAL (15-150 NB)</option>
+            <option value="MS_C_IS3589">MS ERW PIPE C CLASS AS PER IS3589 MAKE JINDAL (200-600 NB)</option>
+            <option value="GI_B_IS1239">GI PIPE B CLASS IS1239 SWS MAKE JINDAL (15-150 NB)</option>
+            <option value="GI_C_PE">GI PIPE C CLASS P/E MAKE JINDAL (15-150 NB)</option>
+            <option value="SEAMLESS_SA106">CS SEAMLESS PIPE AS PER SA106 GRADE B MAKE MSL/KFIL (All sizes)</option>
+          </select>
+        </div>
       </div>
+
+      {/* Show heading text for editing if heading type (pre-filled from template) */}
+      {formData.itemType === 'heading' && selectedHeadingTemplate && (
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Heading Text (editable)</label>
+          <input
+            type="text"
+            value={formData.headingText}
+            onChange={(e) => setFormData(prev => ({ ...prev, headingText: e.target.value }))}
+            placeholder="Edit the heading text if needed"
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      )}
+
+      {/* Legacy manual heading text - Only for heading items without template */}
+      {formData.itemType === 'heading' && !selectedHeadingTemplate && (
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Custom Heading Text</label>
+          <input
+            type="text"
+            value={formData.headingText}
+            onChange={(e) => setFormData(prev => ({ ...prev, headingText: e.target.value }))}
+            placeholder="e.g., MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal"
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      )}
 
       {/* Sub-item fields - Only for sub-items */}
       {formData.itemType === 'sub-item' && (
@@ -346,10 +425,15 @@ const LineItemsTable = () => {
             onChange={(e) => setFormData(prev => ({ ...prev, sizes: [parseInt(e.target.value)] }))}
             className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            {PIPE_SIZES.map(size => (
+            {availableSizes.map(size => (
               <option key={size} value={size}>{size} NB</option>
             ))}
           </select>
+          {selectedHeadingTemplate && (
+            <div className="text-xs text-gray-500 mt-1">
+              Available sizes based on selected template
+            </div>
+          )}
         </div>
 
         {/* Quantity with Unit */}

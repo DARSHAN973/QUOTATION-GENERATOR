@@ -448,113 +448,43 @@ const PreviewExport = () => {
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  let currentHeading = null;
-                  let subItemCounter = 0;
-                  
-                  return lineItems.map((item, index) => {
-                    // Handle heading items
-                    if (item.itemType === 'heading') {
-                      currentHeading = String.fromCharCode(65 + Math.floor(index / 10)); // A, B, C...
-                      subItemCounter = 0;
-                      return (
-                        <tr key={item.id} className="bg-gray-100">
-                          {columnVisibility.srNo && (
-                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold">
-                              {currentHeading}.
-                            </td>
-                          )}
-                          {columnVisibility.description && (
-                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
-                              {editableDescriptions[item.id] || item.headingText || 'Heading Item'}
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    }
-                    
-                    // Handle sub-items
-                    subItemCounter++;
-                    const qty = item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
-                    const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
-                    const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : item.finalRate / item.wtPerMtr;
-                    const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : item.finalRate * item.wtPerMtr;
+                {lineItems.map((item, index) => {
+                  const qty = item.rateBasis === RATE_BASIS.PER_MTR ? item.totalMeters : item.totalKg;
+                  const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
+                  const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : (item.wtPerMtr ? item.finalRate / item.wtPerMtr : 0);
+                  const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : (item.wtPerMtr ? item.finalRate * item.wtPerMtr : 0);
+                  const mainSrNo = String.fromCharCode(65 + index); // A, B, C, D...
 
+                  // Handle heading items
+                  if (item.itemType === 'heading') {
                     return (
-                    <React.Fragment key={item.id}>
-                      {/* Header Row */}
-                      <tr>
-                        {columnVisibility.srNo && <td className="border border-gray-400 px-4 py-3 font-semibold text-black">{mainSrNo}.</td>}
-                        {columnVisibility.description && <td className="border border-gray-400 px-4 py-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-black">
-                              {editableDescriptions[item.id]?.split('\n')[0] || 'Loading...'}
-                            </span>
-                            <button
-                              onClick={() => setEditingDescription(item.id)}
-                              className="ml-2 text-blue-600 hover:text-blue-800"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </td>}
-                        {columnVisibility.qty && <td className="border border-gray-400 px-4 py-3 text-center text-black"></td>}
-                        {columnVisibility.unit && <td className="border border-gray-400 px-4 py-3 text-center text-black"></td>}
-                        {columnVisibility.weight && <td className="border border-gray-400 px-4 py-3 text-center text-black"></td>}
-                        {columnVisibility.ratePerKg && <td className="border border-gray-400 px-4 py-3 text-center text-black"></td>}
-                        {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-4 py-3 text-center text-black"></td>}
-                        {columnVisibility.amount && <td className="border border-gray-400 px-4 py-3 text-center text-black"></td>}
-                      </tr>
-                      
-                      {/* Description editing modal */}
-                      {editingDescription === item.id && (
-                        <tr>
-                          <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="border border-gray-400 p-3 bg-gray-50">
-                            <div>
-                              <label className="block text-sm font-medium mb-2">Edit Description:</label>
-                              <textarea
-                                value={editableDescriptions[item.id] || ''}
-                                onChange={(e) => setEditableDescriptions(prev => ({
-                                  ...prev,
-                                  [item.id]: e.target.value
-                                }))}
-                                className="w-full h-24 p-2 border border-gray-300 bg-white text-gray-900 rounded text-sm focus:ring-2 focus:ring-blue-500"
-                              />
-                              <div className="flex justify-end space-x-2 mt-2">
-                                <button
-                                  onClick={() => setEditingDescription(null)}
-                                  className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => updateDescription(item.id, editableDescriptions[item.id])}
-                                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
+                      <tr key={item.id} className="bg-blue-50">
+                        {columnVisibility.srNo && (
+                          <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold">
+                            {mainSrNo}.
                           </td>
-                        </tr>
-                      )}
+                        )}
+                        <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
+                          {editableDescriptions[item.id] || item.headingText || 'MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal'}
+                        </td>
+                      </tr>
+                    );
+                  }
 
-                      {/* Sub-lines for sizes */}
-                      {editableDescriptions[item.id]?.split('\n').slice(1).map((subLine, subIndex) => (
-                        subLine.trim() && (
-                          <tr key={`${item.id}-${subIndex}`}>
-                            {columnVisibility.srNo && <td className="border border-gray-400 px-4 py-2 text-black">{subIndex + 1}.</td>}
-                            {columnVisibility.description && <td className="border border-gray-400 px-4 py-2 pl-8 text-black">{subLine}</td>}
-                            {columnVisibility.qty && <td className="border border-gray-400 px-4 py-2 text-center text-black">{qty.toFixed(2)}</td>}
-                            {columnVisibility.unit && <td className="border border-gray-400 px-4 py-2 text-center text-black">{unit}</td>}
-                            {columnVisibility.weight && <td className="border border-gray-400 px-4 py-2 text-center text-black">{item.totalKg.toFixed(2)}</td>}
-                            {columnVisibility.ratePerKg && <td className="border border-gray-400 px-4 py-2 text-center text-black">{ratePerKg.toFixed(2)}</td>}
-                            {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-4 py-2 text-center text-black">{ratePerMtr.toFixed(2)}</td>}
-                            {columnVisibility.amount && <td className="border border-gray-400 px-4 py-2 text-center text-black">{item.lineAmount.toFixed(2)}</td>}
-                          </tr>
-                        )
-                      ))}
-                    </React.Fragment>
+                  // Handle sub-items
+                  return (
+                    <tr key={item.id}>
+                      {columnVisibility.srNo && <td className="border border-gray-400 px-4 py-3 text-black">{index + 1}.</td>}
+                      {columnVisibility.description && <td className="border border-gray-400 px-4 py-3 text-black pl-8">
+                        {editableDescriptions[item.id] || `${item.sizes[0]} NB`}
+                      </td>}
+                      {columnVisibility.qty && <td className="border border-gray-400 px-4 py-3 text-center text-black">{qty.toFixed(2)}</td>}
+                      {columnVisibility.unit && <td className="border border-gray-400 px-4 py-3 text-center text-black">{unit}</td>}
+                      {columnVisibility.weight && <td className="border border-gray-400 px-4 py-3 text-center text-black">{item.totalKg.toFixed(2)}</td>}
+                      {columnVisibility.ratePerKg && <td className="border border-gray-400 px-4 py-3 text-center text-black">{ratePerKg.toFixed(2)}</td>}
+                      {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-4 py-3 text-center text-black">{ratePerMtr.toFixed(2)}</td>}
+                      {columnVisibility.amount && <td className="border border-gray-400 px-4 py-3 text-center text-black">{item.lineAmount ? item.lineAmount.toFixed(2) : '0.00'}</td>}
+                    </tr>
                   );
                 })}
 
