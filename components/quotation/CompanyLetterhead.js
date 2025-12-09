@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
+import { format } from 'date-fns';
 
-const CompanyLetterhead = () => {
+const CompanyLetterhead = ({ quotationNumber, quotationDate, customerName }) => {
   return (
     <div className="company-letterhead mb-8 text-center print-text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Company Logo/Name Area - A4 optimized */}
@@ -50,6 +51,24 @@ const CompanyLetterhead = () => {
         <h2 className="text-2xl font-bold text-black underline">
           QUOTATION
         </h2>
+        
+        {/* Quotation Details */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-black max-w-2xl mx-auto">
+          <div className="text-center">
+            <span className="font-semibold">Quotation No:</span>
+            <div className="font-medium">{quotationNumber || 'DEC001'}</div>
+          </div>
+          <div className="text-center">
+            <span className="font-semibold">Date:</span>
+            <div className="font-medium">
+              {quotationDate ? format(new Date(quotationDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}
+            </div>
+          </div>
+          <div className="text-center">
+            <span className="font-semibold">To:</span>
+            <div className="font-medium">{customerName || 'Valued Customer'}</div>
+          </div>
+        </div>
       </div>
     </div>
   );

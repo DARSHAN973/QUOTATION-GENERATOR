@@ -4,7 +4,6 @@ import React from 'react';
 import { Calculator, ArrowRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
 import { SUPPLY_TYPES } from '../../data/constants.js';
-import QuotationHeader from '../forms/QuotationHeader.js';
 import OrderSettings from '../forms/OrderSettings.js';
 import LineItemsTable from '../tables/LineItemsTable.js';
 import BulkCalculator from '../forms/BulkCalculator.js';
@@ -40,13 +39,6 @@ const NewQuotation = () => {
       </div>
 
       <div className="space-y-8">
-        {/* Quotation Header */}
-        <QuotationHeader 
-          quotationData={state.quotation}
-          onUpdate={actions.updateQuotationHeader}
-          existingQuotations={state.savedQuotations || []}
-        />
-
         {/* Order Settings Panel */}
         <OrderSettings />
 

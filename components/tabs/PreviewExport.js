@@ -33,7 +33,7 @@ import { format } from 'date-fns';
 const PreviewExport = () => {
   const { state, actions } = useApp();
   const { quotation, settings } = state;
-  const { orderSettings, lineItems, totals, termsAndConditions } = quotation;
+  const { orderSettings, lineItems, totals, termsAndConditions, partyName, quotationDate, srNo } = quotation;
   
   const [editableDescriptions, setEditableDescriptions] = useState({});
   const [editingDescription, setEditingDescription] = useState(null);
@@ -182,7 +182,7 @@ const PreviewExport = () => {
     try {
       setIsLoading(true);
       // Generate Excel data as text for clipboard
-      let excelText = `Quotation - ${orderSettings.customerName || 'Customer'}\n\n`;
+      let excelText = `Quotation ${orderSettings.quotationNumber || orderSettings.srNo || 'DEC001'} - ${orderSettings.customerName || 'Customer'}\n\n`;
       excelText += `SR.NO\tDESCRIPTION\tQTY\tUNIT\tWEIGHT\tRATE/KG\tRATE/MTR\tAMOUNT\n`;
       
       lineItems.forEach((item, index) => {
@@ -190,9 +190,47 @@ const PreviewExport = () => {
         const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
         const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : item.finalRate / item.wtPerMtr;
         const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : item.finalRate * item.wtPerMtr;
-        const mainSrNo = String.fromCharCode(65 + index);
         
-        excelText += `${mainSrNo}\t${editableDescriptions[item.id] || 'Loading...'}\t${qty.toFixed(2)}\t${unit}\t${item.totalKg.toFixed(2)}\t${ratePerKg.toFixed(2)}\t${ratePerMtr.toFixed(2)}\t${item.lineAmount.toFixed(2)}\n`;
+        // Calculate hierarchical numbering
+        let headingIndex = 0;
+        let subItemIndex = 0;
+        
+        // Count headings before current item
+        for (let i = 0; i < index; i++) {
+          if (lineItems[i].itemType === 'heading') {
+            headingIndex++;
+          }
+        }
+        
+        // If current item is heading, increment heading counter
+        if (item.itemType === 'heading') {
+          headingIndex++;
+          const headingLetter = String.fromCharCode(64 + headingIndex);
+          const headingText = editableDescriptions[item.id] || item.headingText || 'MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal';
+          const sizeText = item.sizes && item.sizes.length > 0 ? item.sizes.join(', ') + ' NB' : '';
+          
+          excelText += `${headingLetter}.\t${headingText}\t\t\t\t\t\t\n`;
+          if (sizeText) {
+            excelText += `\tSize: ${sizeText}\t\t\t\t\t\t\n`;
+          }
+        } else {
+          // For sub-items, count sub-items after last heading
+          let lastHeadingIndex = -1;
+          for (let i = index - 1; i >= 0; i--) {
+            if (lineItems[i].itemType === 'heading') {
+              lastHeadingIndex = i;
+              break;
+            }
+          }
+          
+          for (let i = lastHeadingIndex + 1; i <= index; i++) {
+            if (lineItems[i] && lineItems[i].itemType !== 'heading') {
+              subItemIndex++;
+            }
+          }
+          
+          excelText += `${subItemIndex}.\t${editableDescriptions[item.id] || 'Loading...'}\t${qty.toFixed(2)}\t${unit}\t${item.totalKg.toFixed(2)}\t${ratePerKg.toFixed(2)}\t${ratePerMtr.toFixed(2)}\t${item.lineAmount.toFixed(2)}\n`;
+        }
       });
       
       excelText += `\nTOTAL\t\t${totals.totalQty.toFixed(2)}\t\t${totals.totalWeight.toFixed(2)}\t\t\t${totals.totalAmount.toFixed(2)}`;
@@ -401,29 +439,11 @@ const PreviewExport = () => {
           }}
         >
           {/* Company Letterhead */}
-          <CompanyLetterhead />
-
-          {/* Quotation Details Section */}
-          <div className="mb-6 border border-gray-400 p-4 bg-gray-50">
-            <div className="grid grid-cols-2 gap-4 text-sm text-black">
-              <div>
-                <span className="font-semibold">Quotation No: </span>
-                <span>{orderSettings.quotationNumber || orderSettings.srNumber || 'DEC001'}</span>
-              </div>
-              <div>
-                <span className="font-semibold">Date: </span>
-                <span>{format(new Date(), 'dd/MM/yyyy')}</span>
-              </div>
-              <div>
-                <span className="font-semibold">Supply Type: </span>
-                <span>{orderSettings.supplyType || 'From Godown'}</span>
-              </div>
-              <div>
-                <span className="font-semibold">Godown: </span>
-                <span>{orderSettings.godown || 'Wagholi'}</span>
-              </div>
-            </div>
-          </div>
+          <CompanyLetterhead 
+            quotationNumber={orderSettings.quotationNumber || srNo}
+            quotationDate={quotationDate}
+            customerName={partyName}
+          />
 
           {/* Intro Text */}
           <div className="mb-6 text-sm text-black">
@@ -453,28 +473,77 @@ const PreviewExport = () => {
                   const unit = item.rateBasis === RATE_BASIS.PER_MTR ? 'MTRS' : 'KGS';
                   const ratePerKg = item.rateBasis === RATE_BASIS.PER_KG ? item.finalRate : (item.wtPerMtr ? item.finalRate / item.wtPerMtr : 0);
                   const ratePerMtr = item.rateBasis === RATE_BASIS.PER_MTR ? item.finalRate : (item.wtPerMtr ? item.finalRate * item.wtPerMtr : 0);
-                  const mainSrNo = String.fromCharCode(65 + index); // A, B, C, D...
+                  
+                  // Calculate hierarchical numbering
+                  let headingIndex = 0;
+                  let subItemIndex = 0;
+                  
+                  // Count headings before current item
+                  for (let i = 0; i < index; i++) {
+                    if (lineItems[i].itemType === 'heading') {
+                      headingIndex++;
+                    }
+                  }
+                  
+                  // If current item is heading, increment heading counter
+                  if (item.itemType === 'heading') {
+                    headingIndex++;
+                  } else {
+                    // For sub-items, count sub-items after last heading
+                    let lastHeadingIndex = -1;
+                    for (let i = index - 1; i >= 0; i--) {
+                      if (lineItems[i].itemType === 'heading') {
+                        lastHeadingIndex = i;
+                        break;
+                      }
+                    }
+                    
+                    for (let i = lastHeadingIndex + 1; i <= index; i++) {
+                      if (lineItems[i] && lineItems[i].itemType !== 'heading') {
+                        subItemIndex++;
+                      }
+                    }
+                  }
+                  
+                  const headingLetter = String.fromCharCode(64 + headingIndex); // A, B, C, D...
 
                   // Handle heading items
                   if (item.itemType === 'heading') {
+                    const headingText = editableDescriptions[item.id] || item.headingText || 'MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal';
+                    const sizeText = item.sizes && item.sizes.length > 0 ? item.sizes.join(', ') + ' NB' : '';
+                    
                     return (
-                      <tr key={item.id} className="bg-blue-50">
-                        {columnVisibility.srNo && (
-                          <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold">
-                            {mainSrNo}.
+                      <React.Fragment key={item.id}>
+                        {/* Main heading row */}
+                        <tr className="bg-blue-50">
+                          {columnVisibility.srNo && (
+                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold">
+                              {headingLetter}.
+                            </td>
+                          )}
+                          <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
+                            {headingText}
                           </td>
+                        </tr>
+                        {/* Size information row */}
+                        {sizeText && (
+                          <tr className="bg-blue-50">
+                            {columnVisibility.srNo && (
+                              <td className="border border-gray-400 px-4 py-3 text-left text-black"></td>
+                            )}
+                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-semibold pl-8" colSpan="7">
+                              Size: {sizeText}
+                            </td>
+                          </tr>
                         )}
-                        <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
-                          {editableDescriptions[item.id] || item.headingText || 'MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal'}
-                        </td>
-                      </tr>
+                      </React.Fragment>
                     );
                   }
 
                   // Handle sub-items
                   return (
                     <tr key={item.id}>
-                      {columnVisibility.srNo && <td className="border border-gray-400 px-4 py-3 text-black">{index + 1}.</td>}
+                      {columnVisibility.srNo && <td className="border border-gray-400 px-4 py-3 text-black">{subItemIndex}.</td>}
                       {columnVisibility.description && <td className="border border-gray-400 px-4 py-3 text-black pl-8">
                         {editableDescriptions[item.id] || `${item.sizes[0]} NB`}
                       </td>}
@@ -527,6 +596,14 @@ const PreviewExport = () => {
                   ) : (
                     <span className="font-medium"> {termsAndConditions.paymentTerm || 'Against Delivery'}</span>
                   )}
+                  {(() => {
+                    const discountItems = lineItems.filter(item => item.discountMode === 'show' && item.discountPercent > 0);
+                    if (discountItems.length > 0) {
+                      const totalDiscountPercent = discountItems.reduce((sum, item) => sum + item.discountPercent, 0);
+                      return <span className="font-medium"> - Less: {totalDiscountPercent}% discount</span>;
+                    }
+                    return null;
+                  })()}
                 </p>
                 <p className="text-black">2. +{orderSettings.gst || 18}% GST EXTRA</p>
                 {termsAndConditions.showTransportExtra && <p className="text-black">3. TRANSPORT EXTRA AT ACTUAL.</p>}
@@ -535,23 +612,20 @@ const PreviewExport = () => {
                 <p className="text-black">6. IN CASE OF INCREASE IN STEEL PRICES ABOVE RATES WILL NOT BE VALID</p>
                 <p className="text-black">7. RATES VALID TILL {termsAndConditions.validTillDate ? format(new Date(termsAndConditions.validTillDate), 'dd/MM/yyyy') : format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy')}</p>
                 {termsAndConditions.showGodownLocation && <p className="text-black">8. PIPES RATES EX- {orderSettings.godown?.toUpperCase() || 'WAGHOLI'} GODOWN</p>}
-                {(() => {
-                  const discountItems = lineItems.filter(item => item.discountMode === 'show' && item.discountPercent > 0);
-                  if (discountItems.length > 0) {
-                    const totalDiscount = discountItems.reduce((sum, item) => sum + (item.lineAmount * item.discountPercent / 100), 0);
-                    return (
-                      <p className="text-black font-medium">
-                        {termsAndConditions.showGodownLocation ? '9' : '8'}. DISCOUNT: {totalDiscount.toFixed(2)} ({discountItems.map(item => `${item.discountPercent}%`).join(', ')})
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
             ) : (
               <div className="space-y-2 text-black">
                 <p className="text-black">1. Delivery: [Address to be specified]</p>
-                <p className="text-black">2. Payment against proforma – 100% advance</p>
+                <p className="text-black">2. Payment against proforma – 100% advance
+                  {(() => {
+                    const discountItems = lineItems.filter(item => item.discountMode === 'show' && item.discountPercent > 0);
+                    if (discountItems.length > 0) {
+                      const totalDiscountPercent = discountItems.reduce((sum, item) => sum + item.discountPercent, 0);
+                      return <span className="font-medium"> - Less: {totalDiscountPercent}% discount</span>;
+                    }
+                    return null;
+                  })()}
+                </p>
                 <p className="text-black">3. Free delivery from Jindal in 20 ton multiples</p>
                 <p className="text-black">4. Dead freight for part loads will be charged extra</p>
                 <p className="text-black">5. Material will be dispatched from Wagholi godown</p>
@@ -560,18 +634,6 @@ const PreviewExport = () => {
                 <p className="text-black">8. Late payment charges @ 18% per annum</p>
                 <p className="text-black">9. In case of increase in steel prices, above rates will not be valid</p>
                 <p className="text-black">10. RATES VALID TILL {termsAndConditions.validTillDate ? format(new Date(termsAndConditions.validTillDate), 'dd/MM/yyyy') : format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy')}</p>
-                {(() => {
-                  const discountItems = lineItems.filter(item => item.discountMode === 'show' && item.discountPercent > 0);
-                  if (discountItems.length > 0) {
-                    const totalDiscount = discountItems.reduce((sum, item) => sum + (item.lineAmount * item.discountPercent / 100), 0);
-                    return (
-                      <p className="text-black font-medium">
-                        11. DISCOUNT: ₹{totalDiscount.toFixed(2)} ({discountItems.map(item => `${item.discountPercent}%`).join(', ')})
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
             )}
           </div>

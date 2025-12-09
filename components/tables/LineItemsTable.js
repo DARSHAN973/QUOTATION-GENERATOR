@@ -9,7 +9,8 @@ import {
   Calculator,
   Edit,
   Save,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../context/AppContext.js';
@@ -91,6 +92,23 @@ const LineItemsTable = () => {
     }
   }, [formData.material]);
 
+  // Sync discountMode state with formData
+  useEffect(() => {
+    if (formData.discountMode !== discountMode) {
+      setDiscountMode(formData.discountMode);
+    }
+  }, [formData.discountMode]);
+
+  // Sync formData when editing an item
+  useEffect(() => {
+    if (editingId && lineItems.length > 0) {
+      const item = lineItems.find(item => item.id === editingId);
+      if (item) {
+        setDiscountMode(item.discountMode || 'hide');
+      }
+    }
+  }, [editingId, lineItems]);
+
   // Handle heading template selection
   const handleHeadingTemplateSelect = (templateId) => {
     if (!templateId) {
@@ -104,33 +122,47 @@ const LineItemsTable = () => {
       setSelectedHeadingTemplate(templateId);
       setAvailableSizes(template.availableSizes);
       
-      if (formData.itemType === 'heading') {
-        // Update heading with template text
-        setFormData(prev => ({
-          ...prev,
+      // Check if heading for this template already exists
+      const headingExists = lineItems.some(item => 
+        item.itemType === 'heading' && item.headingText === template.text
+      );
+
+      // If no heading exists, create one automatically
+      if (!headingExists) {
+        const headingItem = {
+          id: Date.now(),
+          itemType: 'heading',
           headingText: template.text,
+          templateId: templateId, // Store template ID for easy reference
           material: template.material,
           make: template.make,
           pipeClass: template.pipeClass || CLASSES.MEDIUM,
-        }));
-      } else if (formData.itemType === 'sub-item') {
-        // Update sub-item with template defaults
-        setFormData(prev => ({
-          ...prev,
-          material: template.material,
-          make: template.make,
-          pipeClass: template.pipeClass || CLASSES.MEDIUM,
-          sizes: template.availableSizes.length > 0 ? [template.availableSizes[0]] : [50],
-        }));
+          sizes: template.availableSizes,
+        };
+        actions.addLineItem(headingItem);
       }
+
+      // Set form data for sub-item creation
+      setFormData(prev => ({
+        ...prev,
+        itemType: 'sub-item',
+        material: template.material,
+        make: template.make,
+        pipeClass: template.pipeClass || CLASSES.MEDIUM,
+        sizes: template.availableSizes.length > 0 ? [template.availableSizes[0]] : [50],
+      }));
+
+      // Template selection always shows the size form - no need for showAddForm
+      // The size selection will be visible immediately after template selection
     }
   };
 
-  // Reset template selection when item type changes
+  // Reset available sizes when no template is selected
   useEffect(() => {
-    setSelectedHeadingTemplate('');
-    setAvailableSizes(PIPE_SIZES);
-  }, [formData.itemType]);
+    if (!selectedHeadingTemplate) {
+      setAvailableSizes(PIPE_SIZES);
+    }
+  }, []); // Remove dependency on selectedHeadingTemplate to prevent reset loop
 
   // Calculate derived values when form data changes
   useEffect(() => {
@@ -216,15 +248,62 @@ const LineItemsTable = () => {
   };
 
   const handleAddItem = () => {
-    // For sub-items, validate sizes; for headings, validate heading text
-    if (formData.itemType === 'sub-item' && formData.sizes.length === 0) return;
-    if (formData.itemType === 'heading' && !formData.headingText.trim()) return;
+    // Validate required fields - now only for sub-items
+    if (formData.sizes.length === 0) return;
+    if (!selectedHeadingTemplate) return;
     
     const newItem = { ...formData, id: Date.now() };
     actions.addLineItem(newItem);
-    setFormData(getInitialFormData());
-    setShowAddForm(false);
+    setFormData(prev => ({
+      ...getInitialFormData(),
+      // Keep the template-related fields so user can add more sizes
+      itemType: 'sub-item',
+      material: prev.material,
+      make: prev.make,
+      pipeClass: prev.pipeClass,
+      sizes: availableSizes.length > 0 ? [availableSizes[0]] : [50], // Reset to first available size
+    }));
+    setDiscountMode('hide'); // Reset discount mode
+    // Don't close the form - keep it open for adding more sizes
     updateTotals([...lineItems, newItem]);
+  };
+
+  const handleAddMultipleSubItems = () => {
+    if (!selectedHeadingTemplate) {
+      alert('Please select a template to add multiple sub-items');
+      return;
+    }
+
+    const template = HEADING_TEMPLATES[selectedHeadingTemplate];
+    if (!template || !template.sizes.length) {
+      alert('No sizes available for this template');
+      return;
+    }
+
+    const newItems = template.sizes.map((size, index) => ({
+      ...formData,
+      id: Date.now() + index,
+      sizes: [size],
+      itemType: 'sub-item'
+    }));
+
+    // Add all items at once
+    newItems.forEach(item => {
+      actions.addLineItem(item);
+    });
+
+    setFormData(prev => ({
+      ...getInitialFormData(),
+      // Keep the template-related fields so user can add more sizes
+      itemType: 'sub-item',
+      material: prev.material,
+      make: prev.make,
+      pipeClass: prev.pipeClass,
+      sizes: availableSizes.length > 0 ? [availableSizes[0]] : [50], // Reset to first available size
+    }));
+    setDiscountMode('hide'); // Reset discount mode
+    // Don't close the form - keep it open for adding more sizes
+    updateTotals([...lineItems, ...newItems]);
   };
 
   const handleEditItem = (id) => {
@@ -236,10 +315,51 @@ const LineItemsTable = () => {
     }
   };
 
+  // Open the Add Sizes form prefilled from a heading (template) row
+  const handleOpenAddSizesFromHeading = (headingItem) => {
+    if (!headingItem) return;
+
+    // Try to resolve a template id from the heading if present
+    let templateId = headingItem.templateId;
+    if (!templateId) {
+      templateId = Object.keys(HEADING_TEMPLATES).find(key => {
+        const t = HEADING_TEMPLATES[key];
+        return t && t.text && headingItem.headingText && t.text === headingItem.headingText;
+      });
+    }
+
+    // Set selected template (may be empty string if unknown)
+    setSelectedHeadingTemplate(templateId || '');
+
+    // Set available sizes from heading or template
+    const sizesFromHeading = headingItem.sizes && headingItem.sizes.length ? headingItem.sizes : (
+      (HEADING_TEMPLATES[templateId] && HEADING_TEMPLATES[templateId].availableSizes) || PIPE_SIZES
+    );
+    setAvailableSizes(sizesFromHeading);
+
+    // Prefill the form for adding a sub-item (material/make/class come from heading)
+    setFormData(prev => ({
+      ...getInitialFormData(),
+      material: headingItem.material || MATERIALS.MS,
+      make: headingItem.make || prev.make,
+      pipeClass: headingItem.pipeClass || prev.pipeClass,
+      sizes: sizesFromHeading && sizesFromHeading.length ? [sizesFromHeading[0]] : [PIPE_SIZES[0]],
+    }));
+
+    // Show the add form so user can immediately add sizes
+    setShowAddForm(true);
+    
+    // Scroll to top to show the template selection area
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  };
+
   const handleUpdateItem = () => {
     actions.updateLineItem(editingId, formData);
     setEditingId(null);
     setShowAddForm(false);
+    setDiscountMode('hide'); // Reset discount mode
     const updatedItems = lineItems.map(item => 
       item.id === editingId ? { ...item, ...formData } : item
     );
@@ -287,24 +407,11 @@ const LineItemsTable = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {/* Item Type */}
+      <div className="grid grid-cols-1 gap-4">
+        {/* Template Selector */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Item Type</label>
-          <select
-            value={formData.itemType}
-            onChange={(e) => setFormData(prev => ({ ...prev, itemType: e.target.value }))}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="heading">Heading</option>
-            <option value="sub-item">Sub Item</option>
-          </select>
-        </div>
-
-        {/* Heading Template Selector */}
-        <div className="md:col-span-2 lg:col-span-3">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {formData.itemType === 'heading' ? 'Select Heading Template' : 'Select Item Category (sets material, make, sizes)'}
+            Select Item Category (sets material, make, sizes)
           </label>
           <select
             value={selectedHeadingTemplate}
@@ -323,100 +430,20 @@ const LineItemsTable = () => {
         </div>
       </div>
 
-      {/* Show heading text for editing if heading type (pre-filled from template) */}
-      {formData.itemType === 'heading' && selectedHeadingTemplate && (
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Heading Text (editable)</label>
-          <input
-            type="text"
-            value={formData.headingText}
-            onChange={(e) => setFormData(prev => ({ ...prev, headingText: e.target.value }))}
-            placeholder="Edit the heading text if needed"
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      )}
+      {/* Size Selection Section - Prominently displayed when template is selected */}
+      {selectedHeadingTemplate && (
+        <>
+          {/* Visual separator and instruction */}
+          <div className="border-t border-gray-200 my-6 pt-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-semibold text-blue-800 mb-2">
+                ✓ Template Selected: {HEADING_TEMPLATES[selectedHeadingTemplate]?.text.split(' ').slice(0, 6).join(' ')}...
+              </h4>
+              <p className="text-sm text-blue-700">Now select size and quantity to add items:</p>
+            </div>
+          </div>
 
-      {/* Legacy manual heading text - Only for heading items without template */}
-      {formData.itemType === 'heading' && !selectedHeadingTemplate && (
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Custom Heading Text</label>
-          <input
-            type="text"
-            value={formData.headingText}
-            onChange={(e) => setFormData(prev => ({ ...prev, headingText: e.target.value }))}
-            placeholder="e.g., MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal"
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      )}
-
-      {/* Sub-item fields - Only for sub-items */}
-      {formData.itemType === 'sub-item' && (
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-        {/* Material */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Material</label>
-          <select
-            value={formData.material}
-            onChange={(e) => setFormData(prev => ({ ...prev, material: e.target.value }))}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {Object.values(MATERIALS).map(material => (
-              <option key={material} value={material}>{material}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Make - Auto-set, read-only display */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
-          <input
-            type="text"
-            value={formData.make}
-            readOnly
-            className="w-full px-3 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md cursor-not-allowed"
-            title="Make is automatically set based on material"
-          />
-        </div>
-
-        {/* Class/Type/Thickness */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {formData.material === MATERIALS.SEAMLESS ? 'Type' : 
-             formData.sizes[0] >= 200 ? 'Thickness (THK)' : 'Class'}
-          </label>
-          {formData.material === MATERIALS.SEAMLESS ? (
-            <select
-              value={formData.schedule}
-              onChange={(e) => setFormData(prev => ({ ...prev, schedule: e.target.value }))}
-              className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {SCHEDULES.map(schedule => (
-                <option key={schedule} value={schedule}>{schedule}</option>
-              ))}
-            </select>
-          ) : formData.sizes[0] >= 200 ? (
-            <input
-              type="text"
-              value={formData.thickness}
-              onChange={(e) => setFormData(prev => ({ ...prev, thickness: e.target.value }))}
-              className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., 5mm, 6mm, 8mm"
-            />
-          ) : (
-            <select
-              value={formData.pipeClass}
-              onChange={(e) => setFormData(prev => ({ ...prev, pipeClass: e.target.value }))}
-              className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {Object.values(CLASSES).map(cls => (
-                <option key={cls} value={cls}>{cls}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* Size */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Size (NB)</label>
@@ -429,11 +456,9 @@ const LineItemsTable = () => {
               <option key={size} value={size}>{size} NB</option>
             ))}
           </select>
-          {selectedHeadingTemplate && (
-            <div className="text-xs text-gray-500 mt-1">
-              Available sizes based on selected template
-            </div>
-          )}
+          <div className="text-xs text-gray-500 mt-1">
+            Available sizes based on selected template
+          </div>
         </div>
 
         {/* Quantity with Unit */}
@@ -472,10 +497,11 @@ const LineItemsTable = () => {
           </div>
         </div>
       </div>
+      </>
       )}
 
-      {/* Second row with calculations and rates - Only for sub-items */}
-      {formData.itemType === 'sub-item' && (
+      {/* Second row with calculations and rates - Only when template is selected */}
+      {selectedHeadingTemplate && (
       <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Wt/Mtr</label>
@@ -600,18 +626,33 @@ const LineItemsTable = () => {
             setShowAddForm(false);
             setEditingId(null);
             setFormData(getInitialFormData());
+            setDiscountMode('hide'); // Reset discount mode
           }}
           className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
         >
           Cancel
         </button>
-        <button
-          onClick={editingId ? handleUpdateItem : handleAddItem}
-          className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-        >
-          <Save className="w-4 h-4" />
-          <span>{editingId ? 'Update Item' : 'Add Item'}</span>
-        </button>
+        
+        {/* Add buttons - only show when template is selected */}
+        {selectedHeadingTemplate && (
+          <>
+            <button
+              onClick={handleAddMultipleSubItems}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add More Sizes</span>
+            </button>
+            
+            <button
+              onClick={editingId ? handleUpdateItem : handleAddItem}
+              className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Another Size</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -628,25 +669,175 @@ const LineItemsTable = () => {
             <p className="text-sm text-gray-600">Add pipe items and calculate rates</p>
           </div>
         </div>
-        
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Item</span>
-        </button>
       </div>
 
-      {/* Add/Edit Form */}
-      {showAddForm && renderAddForm()}
+      {/* Template Selection - Always Visible */}
+      <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Template</h3>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Select Item Category (sets material, make, sizes)
+          </label>
+          <select
+            value={selectedHeadingTemplate}
+            onChange={(e) => handleHeadingTemplateSelect(e.target.value)}
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Select a template...</option>
+            <option value="MS_B_IS1239">MS ERW PIPE B CLASS AS PER IS1239 MAKE JINDAL (15-150 NB)</option>
+            <option value="MS_B_IS3589">MS ERW PIPE B CLASS AS PER IS3589 MAKE JINDAL (200-600 NB)</option>
+            <option value="MS_C_IS1239">MS ERW PIPE C CLASS AS PER IS1239 MAKE JINDAL (15-150 NB)</option>
+            <option value="MS_C_IS3589">MS ERW PIPE C CLASS AS PER IS3589 MAKE JINDAL (200-600 NB)</option>
+            <option value="GI_B_IS1239">GI PIPE B CLASS IS1239 SWS MAKE JINDAL (15-150 NB)</option>
+            <option value="GI_C_PE">GI PIPE C CLASS P/E MAKE JINDAL (15-150 NB)</option>
+            <option value="SEAMLESS_SA106">CS SEAMLESS PIPE AS PER SA106 GRADE B MAKE MSL/KFIL (All sizes)</option>
+          </select>
+          
+          {/* spacer/helper text */}
+          <div className="text-xs text-gray-500 mt-1">
+            Select a template to enable size/quantity inputs below.
+          </div>
+        </div>
+
+        {/* Size Selection - Shows immediately after template selection */}
+        {selectedHeadingTemplate && selectedHeadingTemplate.length > 0 && (
+          <div>
+            {/* Success message */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 my-4">
+              <h4 className="text-sm font-semibold text-green-800 mb-2">
+                ✓ Template Selected: {HEADING_TEMPLATES[selectedHeadingTemplate]?.text || selectedHeadingTemplate}
+              </h4>
+              <p className="text-sm text-green-700">Now select size and quantity to add items:</p>
+            </div>
+
+            {/* Size and Quantity Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Size */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Size (NB)</label>
+                <select
+                  value={formData.sizes[0]}
+                  onChange={(e) => setFormData(prev => ({ ...prev, sizes: [parseInt(e.target.value)] }))}
+                  className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {availableSizes.map(size => (
+                    <option key={size} value={size}>{size} NB</option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500 mt-1">
+                  Available sizes based on selected template
+                </div>
+              </div>
+
+              {/* Quantity with Unit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="number"
+                    value={
+                      formData.lengthMode === LENGTH_MODES.PIPES ? formData.pipeCount :
+                      formData.lengthMode === LENGTH_MODES.METERS ? formData.totalMeters : formData.totalKg
+                    }
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      if (formData.lengthMode === LENGTH_MODES.PIPES) {
+                        setFormData(prev => ({ ...prev, pipeCount: value }));
+                      } else if (formData.lengthMode === LENGTH_MODES.METERS) {
+                        setFormData(prev => ({ ...prev, totalMeters: value }));
+                      } else {
+                        setFormData(prev => ({ ...prev, totalKg: value }));
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    min="0"
+                    placeholder="Enter quantity"
+                  />
+                  <select
+                    value={formData.lengthMode}
+                    onChange={(e) => setFormData(prev => ({ ...prev, lengthMode: e.target.value }))}
+                    className="w-28 px-2 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value={LENGTH_MODES.PIPES}>Pipes</option>
+                    <option value={LENGTH_MODES.METERS}>Mtrs</option>
+                    <option value={LENGTH_MODES.KGS}>Kgs</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Pricing Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Base Rate */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate</label>
+                <input
+                  type="number"
+                  value={formData.baseRate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, baseRate: parseFloat(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter rate"
+                  readOnly={orderSettings.supplyType === SUPPLY_TYPES.GODOWN}
+                />
+              </div>
+
+              {/* Discount */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
+                <input
+                  type="number"
+                  value={formData.discountPercent}
+                  onChange={(e) => setFormData(prev => ({ ...prev, discountPercent: parseFloat(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter discount %"
+                  min="0"
+                  max="100"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-4 mt-6">
+              <button
+                onClick={editingId ? handleUpdateItem : handleAddItem}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add This Size</span>
+              </button>
+              
+              <button
+                onClick={handleAddMultipleSubItems}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Multiple Sizes</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedHeadingTemplate('');
+                  setFormData(getInitialFormData());
+                  setShowAddForm(false);
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                <X className="w-4 h-4" />
+                <span>Done Adding</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       
       {/* Line Items Table */}
       {lineItems.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
           <Table className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 font-medium">No items added yet</p>
-          <p className="text-sm text-gray-400">Click "Add Item" to start building your quotation</p>
+          <p className="text-sm text-gray-400">Click "Select Template" above to choose a pipe type and start adding sizes</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -676,6 +867,14 @@ const LineItemsTable = () => {
                       </td>
                       <td className="text-center px-4 py-3">
                         <div className="flex space-x-2 justify-center">
+                          <button
+                            onClick={() => handleOpenAddSizesFromHeading(item)}
+                            className="flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-sm"
+                            title="Add Sizes for this heading"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Add Sizes</span>
+                          </button>
                           <button
                             onClick={() => handleEditItem(item.id)}
                             className="text-blue-600 hover:text-blue-800"
