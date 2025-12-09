@@ -262,19 +262,15 @@ const OrderSettings = () => {
                 </div>
                 {label === SUPPLY_TYPES.GODOWN ? (
                   <Warehouse className="w-5 h-5" />
-                ) : label === SUPPLY_TYPES.DIRECT ? (
-                  <Truck className="w-5 h-5" />
                 ) : (
-                  <Edit3 className="w-5 h-5" />
+                  <Truck className="w-5 h-5" />
                 )}
                 <div className="text-left">
                   <div className="font-medium">{label}</div>
                   <div className="text-xs opacity-75">
                     {label === SUPPLY_TYPES.GODOWN 
-                      ? 'Stock from our godown'
-                      : label === SUPPLY_TYPES.DIRECT 
-                      ? 'Direct delivery from Jindal'
-                      : 'Set your own rates manually'
+                      ? 'Stock from godown (rates editable)'
+                      : 'Direct delivery from Jindal'
                     }
                   </div>
                 </div>

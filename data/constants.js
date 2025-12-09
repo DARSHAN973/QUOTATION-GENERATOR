@@ -126,7 +126,6 @@ export const GODOWNS = {
 export const SUPPLY_TYPES = {
   GODOWN: 'From Godown',
   DIRECT: 'Direct From Jindal',
-  MANUAL: 'Custom/Manual Rates',
 };
 
 // Quantity input modes

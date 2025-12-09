@@ -547,13 +547,11 @@ const LineItemsTable = () => {
             value={formData.baseRate}
             onChange={(e) => setFormData(prev => ({ ...prev, baseRate: parseFloat(e.target.value) || 0 }))}
             className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            readOnly={orderSettings.supplyType === SUPPLY_TYPES.GODOWN}
+            readOnly={false}
           />
           <div className="text-xs text-gray-500 mt-1">
             {orderSettings.supplyType === SUPPLY_TYPES.GODOWN 
-              ? 'From price list' 
-              : orderSettings.supplyType === SUPPLY_TYPES.MANUAL
-              ? 'Enter your custom rate'
+              ? 'From price list (editable for custom rates)' 
               : 'Manual entry'}
           </div>
         </div>
@@ -770,13 +768,11 @@ const LineItemsTable = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, baseRate: parseFloat(e.target.value) || 0 }))}
                   className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter price list rate"
-                  readOnly={orderSettings.supplyType === SUPPLY_TYPES.GODOWN}
+                  readOnly={false}
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   {orderSettings.supplyType === SUPPLY_TYPES.GODOWN 
-                    ? 'From price list' 
-                    : orderSettings.supplyType === SUPPLY_TYPES.MANUAL
-                    ? 'Enter your custom rate'
+                    ? 'From price list (editable for custom rates)'
                     : 'Manual entry'}
                 </div>
               </div>

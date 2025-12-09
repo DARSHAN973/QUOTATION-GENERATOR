@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Calculator, ArrowRight, Edit3 } from 'lucide-react';
+import { Calculator, ArrowRight, Warehouse } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
 import { SUPPLY_TYPES } from '../../data/constants.js';
 import OrderSettings from '../forms/OrderSettings.js';
@@ -43,24 +43,24 @@ const NewQuotation = () => {
         {/* Order Settings Panel */}
         <OrderSettings />
 
-        {/* Bulk Calculator (only show for Direct Jindal) */}
-        {orderSettings.supplyType === SUPPLY_TYPES.DIRECT && (
-          <BulkCalculator />
-        )}
-
-        {/* Manual Rates Info (only show for Manual/Custom rates) */}
-        {orderSettings.supplyType === SUPPLY_TYPES.MANUAL && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+        {/* Godown Info (show helpful tip for godown rates) */}
+        {orderSettings.supplyType === SUPPLY_TYPES.GODOWN && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center space-x-2">
-              <Edit3 className="w-5 h-5 text-orange-600" />
+              <Warehouse className="w-5 h-5 text-blue-600" />
               <div>
-                <h3 className="text-sm font-medium text-orange-800">Manual Rate Mode</h3>
-                <p className="text-xs text-orange-600 mt-1">
-                  You can set custom rates for each item. Perfect for competitive pricing or special customer rates.
+                <h3 className="text-sm font-medium text-blue-800">Godown Rates (Editable)</h3>
+                <p className="text-xs text-blue-600 mt-1">
+                  Rates are auto-filled from price list but can be edited for competitive pricing or special deals.
                 </p>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Bulk Calculator (only show for Direct Jindal) */}
+        {orderSettings.supplyType === SUPPLY_TYPES.DIRECT && (
+          <BulkCalculator />
         )}
 
         {/* Global Discount */}
