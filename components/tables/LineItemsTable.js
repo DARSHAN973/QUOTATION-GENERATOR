@@ -94,7 +94,7 @@ const LineItemsTable = () => {
     if (editingId && lineItems.length > 0) {
       const item = lineItems.find(item => item.id === editingId);
       if (item) {
-        setDiscountMode(item.discountMode || 'hide');
+        // Note: discount mode is now global, not per item
       }
     }
   }, [editingId, lineItems]);
@@ -208,7 +208,7 @@ const LineItemsTable = () => {
         baseRate = priceData.puneRate || 0;
       }
     } else {
-      baseRate = formData.baseRate; // For bulk Jindal, this will be set manually
+      baseRate = formData.baseRate; // For bulk Jindal and manual rates, this will be set manually
     }
 
     // Convert rate based on rate basis
@@ -549,6 +549,13 @@ const LineItemsTable = () => {
             className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             readOnly={orderSettings.supplyType === SUPPLY_TYPES.GODOWN}
           />
+          <div className="text-xs text-gray-500 mt-1">
+            {orderSettings.supplyType === SUPPLY_TYPES.GODOWN 
+              ? 'From price list' 
+              : orderSettings.supplyType === SUPPLY_TYPES.MANUAL
+              ? 'Enter your custom rate'
+              : 'Manual entry'}
+          </div>
         </div>
 
 
@@ -582,7 +589,6 @@ const LineItemsTable = () => {
             setShowAddForm(false);
             setEditingId(null);
             setFormData(getInitialFormData());
-            setDiscountMode('hide'); // Reset discount mode
           }}
           className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
         >
@@ -767,7 +773,11 @@ const LineItemsTable = () => {
                   readOnly={orderSettings.supplyType === SUPPLY_TYPES.GODOWN}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {orderSettings.supplyType === SUPPLY_TYPES.GODOWN ? 'From price list' : 'Manual entry'}
+                  {orderSettings.supplyType === SUPPLY_TYPES.GODOWN 
+                    ? 'From price list' 
+                    : orderSettings.supplyType === SUPPLY_TYPES.MANUAL
+                    ? 'Enter your custom rate'
+                    : 'Manual entry'}
                 </div>
               </div>
 

@@ -71,6 +71,7 @@ const actionTypes = {
   UPDATE_ORDER_SETTINGS: 'UPDATE_ORDER_SETTINGS',
   ADD_LINE_ITEM: 'ADD_LINE_ITEM',
   UPDATE_LINE_ITEM: 'UPDATE_LINE_ITEM',
+  UPDATE_LINE_ITEMS: 'UPDATE_LINE_ITEMS',
   REMOVE_LINE_ITEM: 'REMOVE_LINE_ITEM',
   UPDATE_BULK_CALCULATION: 'UPDATE_BULK_CALCULATION',
   UPDATE_TOTALS: 'UPDATE_TOTALS',
@@ -134,6 +135,15 @@ const appReducer = (state, action) => {
           lineItems: state.quotation.lineItems.map(item => 
             item.id === action.payload.id ? { ...item, ...action.payload.updates } : item
           )
+        }
+      };
+      
+    case actionTypes.UPDATE_LINE_ITEMS:
+      return {
+        ...state,
+        quotation: {
+          ...state.quotation,
+          lineItems: action.payload
         }
       };
       
@@ -239,6 +249,16 @@ export const AppProvider = ({ children }) => {
     
     updateQuotationHeader: (headerData) => dispatch({ type: actionTypes.UPDATE_QUOTATION_HEADER, payload: headerData }),
     
+    updateQuotationDate: (date) => dispatch({ 
+      type: actionTypes.UPDATE_QUOTATION_HEADER, 
+      payload: { quotationDate: new Date(date) } 
+    }),
+    
+    updatePartyName: (name) => dispatch({ 
+      type: actionTypes.UPDATE_QUOTATION_HEADER, 
+      payload: { partyName: name } 
+    }),
+    
     updateOrderSettings: (settings) => dispatch({ type: actionTypes.UPDATE_ORDER_SETTINGS, payload: settings }),
     
     addLineItem: (item) => dispatch({ type: actionTypes.ADD_LINE_ITEM, payload: item }),
@@ -246,6 +266,11 @@ export const AppProvider = ({ children }) => {
     updateLineItem: (id, updates) => dispatch({ 
       type: actionTypes.UPDATE_LINE_ITEM, 
       payload: { id, updates } 
+    }),
+    
+    updateLineItems: (items) => dispatch({
+      type: actionTypes.UPDATE_LINE_ITEMS,
+      payload: items
     }),
     
     removeLineItem: (id) => dispatch({ type: actionTypes.REMOVE_LINE_ITEM, payload: id }),
