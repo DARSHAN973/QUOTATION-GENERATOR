@@ -45,7 +45,6 @@ const LineItemsTable = () => {
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [discountMode, setDiscountMode] = useState('hide'); // 'show' = in T&C, 'hide' = apply to price
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedHeadingTemplate, setSelectedHeadingTemplate] = useState('');
   const [availableSizes, setAvailableSizes] = useState(PIPE_SIZES);
@@ -68,8 +67,6 @@ const LineItemsTable = () => {
       wtPerMtr: 0,
       rateBasis: RATE_BASIS.PER_MTR,
       baseRate: 0,
-      discountPercent: 0,
-      discountMode: 'hide', // 'show' = show in T&C, 'hide' = apply to price directly
       finalRate: 0,
       lineAmount: 0,
     };
@@ -91,13 +88,6 @@ const LineItemsTable = () => {
       setFormData(prev => ({ ...prev, make: newMake }));
     }
   }, [formData.material]);
-
-  // Sync discountMode state with formData
-  useEffect(() => {
-    if (formData.discountMode !== discountMode) {
-      setDiscountMode(formData.discountMode);
-    }
-  }, [formData.discountMode]);
 
   // Sync formData when editing an item
   useEffect(() => {
@@ -176,8 +166,8 @@ const LineItemsTable = () => {
     formData.totalKg,
     formData.rateBasis,
     formData.baseRate,
-    formData.discountPercent,
-    formData.discountMode
+    orderSettings.globalDiscount,
+    orderSettings.discountMode
   ]);
 
   const calculateDerivedValues = () => {
@@ -227,9 +217,10 @@ const LineItemsTable = () => {
       displayRate = calculateRatePerKg(baseRate, wtPerMtr);
     }
 
-    // Apply discount only if discountMode is 'hide' (apply to price)
-    const finalRate = formData.discountMode === 'hide' ? 
-      applyDiscount(displayRate, formData.discountPercent) : 
+    // Apply global discount if discountMode is 'hide' (apply to price)
+    const globalDiscount = orderSettings.globalDiscount || 0;
+    const finalRate = orderSettings.discountMode === 'hide' ? 
+      applyDiscount(displayRate, globalDiscount) : 
       displayRate;
 
     // Calculate line amount
@@ -263,7 +254,6 @@ const LineItemsTable = () => {
       pipeClass: prev.pipeClass,
       sizes: availableSizes.length > 0 ? [availableSizes[0]] : [50], // Reset to first available size
     }));
-    setDiscountMode('hide'); // Reset discount mode
     // Don't close the form - keep it open for adding more sizes
     updateTotals([...lineItems, newItem]);
   };
@@ -301,7 +291,6 @@ const LineItemsTable = () => {
       pipeClass: prev.pipeClass,
       sizes: availableSizes.length > 0 ? [availableSizes[0]] : [50], // Reset to first available size
     }));
-    setDiscountMode('hide'); // Reset discount mode
     // Don't close the form - keep it open for adding more sizes
     updateTotals([...lineItems, ...newItems]);
   };
@@ -309,9 +298,15 @@ const LineItemsTable = () => {
   const handleEditItem = (id) => {
     const item = lineItems.find(item => item.id === id);
     if (item) {
-      setFormData(item);
-      setEditingId(id);
-      setShowAddForm(true);
+      if (item.itemType === 'heading') {
+        // For heading items, treat as "add sizes" action
+        handleOpenAddSizesFromHeading(item);
+      } else {
+        // For sub-items, normal edit functionality
+        setFormData(item);
+        setEditingId(id);
+        setShowAddForm(true);
+      }
     }
   };
 
@@ -359,7 +354,6 @@ const LineItemsTable = () => {
     actions.updateLineItem(editingId, formData);
     setEditingId(null);
     setShowAddForm(false);
-    setDiscountMode('hide'); // Reset discount mode
     const updatedItems = lineItems.map(item => 
       item.id === editingId ? { ...item, ...formData } : item
     );
@@ -557,45 +551,7 @@ const LineItemsTable = () => {
           />
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-gray-700">Discount %</label>
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDiscountMode('show');
-                  setFormData(prev => ({ ...prev, discountMode: 'show' }));
-                }}
-                className={`text-xs px-2 py-1 rounded ${discountMode === 'show' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-              >
-                Show in T&C
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDiscountMode('hide');
-                  setFormData(prev => ({ ...prev, discountMode: 'hide' }));
-                }}
-                className={`text-xs px-2 py-1 rounded ${discountMode === 'hide' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-              >
-                Apply to Price
-              </button>
-            </div>
-          </div>
-          <input
-            type="number"
-            value={formData.discountPercent}
-            onChange={(e) => setFormData(prev => ({ ...prev, discountPercent: parseFloat(e.target.value) || 0 }))}
-            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            min="0"
-            max="50"
-            placeholder="Enter discount %"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            {discountMode === 'show' ? 'Will show in Terms & Conditions' : 'Will be applied to final price'}
-          </p>
-        </div>
+
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Final Rate</label>
@@ -767,35 +723,110 @@ const LineItemsTable = () => {
               </div>
             </div>
 
-            {/* Pricing Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {/* Base Rate */}
+            {/* Weight and Rate Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              {/* Weight per Meter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Wt/Mtr (kg)</label>
+                <input
+                  type="number"
+                  value={formData.wtPerMtr}
+                  readOnly
+                  className="w-full px-3 py-2 bg-gray-50 text-gray-700 border border-gray-300 rounded-md"
+                  placeholder="Auto-calculated"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  From size and material
+                </div>
+              </div>
+
+              {/* Total Weight */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Weight (kg)</label>
+                <input
+                  type="number"
+                  value={formData.totalKg}
+                  readOnly
+                  className="w-full px-3 py-2 bg-gray-50 text-gray-700 border border-gray-300 rounded-md"
+                  placeholder="Auto-calculated"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Quantity × Wt/Mtr
+                </div>
+              </div>
+
+              {/* Price List Rate per Meter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price List (₹/mtr)</label>
                 <input
                   type="number"
                   value={formData.baseRate}
                   onChange={(e) => setFormData(prev => ({ ...prev, baseRate: parseFloat(e.target.value) || 0 }))}
                   className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter rate"
+                  placeholder="Enter price list rate"
                   readOnly={orderSettings.supplyType === SUPPLY_TYPES.GODOWN}
                 />
+                <div className="text-xs text-gray-500 mt-1">
+                  {orderSettings.supplyType === SUPPLY_TYPES.GODOWN ? 'From price list' : 'Manual entry'}
+                </div>
               </div>
 
-              {/* Discount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
-                <input
-                  type="number"
-                  value={formData.discountPercent}
-                  onChange={(e) => setFormData(prev => ({ ...prev, discountPercent: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter discount %"
-                  min="0"
-                  max="100"
-                />
-              </div>
+              {/* Rate per KG - Only for MS materials */}
+              {formData.material === MATERIALS.MS && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate/kg (₹/kg)</label>
+                  <input
+                    type="number"
+                    value={formData.wtPerMtr > 0 ? (formData.baseRate / formData.wtPerMtr).toFixed(2) : 53}
+                    readOnly
+                    className="w-full px-3 py-2 bg-blue-50 text-blue-700 border border-blue-300 rounded-md font-medium"
+                    placeholder="53"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Price List ÷ Wt/Mtr
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Discounted Price - Only show when Apply to Price mode is selected */}
+            {orderSettings.discountMode === 'hide' && orderSettings.globalDiscount > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-green-700 mb-1">
+                      Discounted Rate ({orderSettings.globalDiscount}% off)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.baseRate > 0 ? (formData.baseRate * (1 - (orderSettings.globalDiscount || 0) / 100)).toFixed(2) : 0}
+                      readOnly
+                      className="w-full px-3 py-2 bg-white text-green-700 border border-green-300 rounded-md font-medium"
+                    />
+                    <div className="text-xs text-green-600 mt-1">
+                      Final rate after {orderSettings.globalDiscount}% discount
+                    </div>
+                  </div>
+                  
+                  {formData.material === MATERIALS.MS && (
+                    <div>
+                      <label className="block text-sm font-medium text-green-700 mb-1">
+                        Discounted Rate/kg
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.wtPerMtr > 0 ? ((formData.baseRate * (1 - (orderSettings.globalDiscount || 0) / 100)) / formData.wtPerMtr).toFixed(2) : (53 * (1 - (orderSettings.globalDiscount || 0) / 100)).toFixed(2)}
+                        readOnly
+                        className="w-full px-3 py-2 bg-white text-green-700 border border-green-300 rounded-md font-medium"
+                      />
+                      <div className="text-xs text-green-600 mt-1">
+                        Discounted rate per kg
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex space-x-4 mt-6">
@@ -805,14 +836,6 @@ const LineItemsTable = () => {
               >
                 <Plus className="w-4 h-4" />
                 <span>Add This Size</span>
-              </button>
-              
-              <button
-                onClick={handleAddMultipleSubItems}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Multiple Sizes</span>
               </button>
 
               <button

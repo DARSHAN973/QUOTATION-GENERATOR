@@ -39,6 +39,8 @@ const PreviewExport = () => {
   const [editingDescription, setEditingDescription] = useState(null);
   const [exportStatus, setExportStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editableData, setEditableData] = useState({});
   const quotationRef = useRef(null);
   const [columnVisibility, setColumnVisibility] = useState({
     srNo: true,
@@ -386,6 +388,27 @@ const PreviewExport = () => {
         hasQuotationData={lineItems.length > 0}
       />
 
+      {/* Edit Mode Toggle */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Preview Options</h3>
+            <p className="text-sm text-gray-600">Toggle edit mode to modify content directly in preview</p>
+          </div>
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isEditMode 
+                ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Edit className="w-4 h-4" />
+            <span>{isEditMode ? 'Exit Edit Mode' : 'Enable Edit Mode'}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Column Visibility Controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Column Visibility</h3>
@@ -443,13 +466,52 @@ const PreviewExport = () => {
             quotationNumber={orderSettings.quotationNumber || srNo}
             quotationDate={quotationDate}
             customerName={partyName}
+            isEditMode={isEditMode}
+            onUpdate={(field, value) => {
+              if (field === 'quotationDate') {
+                actions.updateQuotationDate(value);
+              } else if (field === 'customerName') {
+                actions.updatePartyName(value);
+              }
+            }}
           />
 
           {/* Intro Text */}
           <div className="mb-6 text-sm text-black">
-            <p className="mb-2 text-black">Respected Sir,</p>
-            <p className="mb-2 text-black">Thank you very much for your valued inquiry.</p>
-            <p className="mb-4 text-black">We are pleased to quote our best rates as under:</p>
+            {isEditMode ? (
+              <>
+                <div className="mb-2">
+                  <input
+                    type="text"
+                    value={editableData.greeting || 'Respected Sir,'}
+                    onChange={(e) => setEditableData(prev => ({...prev, greeting: e.target.value}))}
+                    className="w-full bg-transparent border-none outline-none text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-2 py-1"
+                  />
+                </div>
+                <div className="mb-2">
+                  <input
+                    type="text"
+                    value={editableData.thankYou || 'Thank you very much for your valued inquiry.'}
+                    onChange={(e) => setEditableData(prev => ({...prev, thankYou: e.target.value}))}
+                    className="w-full bg-transparent border-none outline-none text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-2 py-1"
+                  />
+                </div>
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={editableData.quoteIntro || 'We are pleased to quote our best rates as under:'}
+                    onChange={(e) => setEditableData(prev => ({...prev, quoteIntro: e.target.value}))}
+                    className="w-full bg-transparent border-none outline-none text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-2 py-1"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-2 text-black">{editableData.greeting || 'Respected Sir,'}</p>
+                <p className="mb-2 text-black">{editableData.thankYou || 'Thank you very much for your valued inquiry.'}</p>
+                <p className="mb-4 text-black">{editableData.quoteIntro || 'We are pleased to quote our best rates as under:'}</p>
+              </>
+            )}
           </div>
 
           {/* Main Table */}
@@ -510,7 +572,6 @@ const PreviewExport = () => {
                   // Handle heading items
                   if (item.itemType === 'heading') {
                     const headingText = editableDescriptions[item.id] || item.headingText || 'MS ERW PIPE B CLASS AS PER IS1239 MAKE Jindal';
-                    const sizeText = item.sizes && item.sizes.length > 0 ? item.sizes.join(', ') + ' NB' : '';
                     
                     return (
                       <React.Fragment key={item.id}>
@@ -522,20 +583,30 @@ const PreviewExport = () => {
                             </td>
                           )}
                           <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
-                            {headingText}
+                            {isEditMode ? (
+                              <input
+                                type="text"
+                                value={editableDescriptions[item.id] || headingText}
+                                onChange={(e) => setEditableDescriptions(prev => ({
+                                  ...prev,
+                                  [item.id]: e.target.value
+                                }))}
+                                className="w-full bg-transparent border-none outline-none font-bold text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-2 py-1"
+                                onBlur={(e) => {
+                                  // Save to line items when user finishes editing
+                                  const updatedItems = lineItems.map(lineItem => 
+                                    lineItem.id === item.id 
+                                      ? { ...lineItem, headingText: e.target.value }
+                                      : lineItem
+                                  );
+                                  actions.updateLineItems(updatedItems);
+                                }}
+                              />
+                            ) : (
+                              headingText
+                            )}
                           </td>
                         </tr>
-                        {/* Size information row */}
-                        {sizeText && (
-                          <tr className="bg-blue-50">
-                            {columnVisibility.srNo && (
-                              <td className="border border-gray-400 px-4 py-3 text-left text-black"></td>
-                            )}
-                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-semibold pl-8" colSpan="7">
-                              Size: {sizeText}
-                            </td>
-                          </tr>
-                        )}
                       </React.Fragment>
                     );
                   }
@@ -545,11 +616,67 @@ const PreviewExport = () => {
                     <tr key={item.id}>
                       {columnVisibility.srNo && <td className="border border-gray-400 px-4 py-3 text-black">{subItemIndex}.</td>}
                       {columnVisibility.description && <td className="border border-gray-400 px-4 py-3 text-black pl-8">
-                        {editableDescriptions[item.id] || `${item.sizes[0]} NB`}
+                        {item.sizes && item.sizes.length > 0 ? `${item.sizes[0]}NB` : 'N/A'}
                       </td>}
-                      {columnVisibility.qty && <td className="border border-gray-400 px-4 py-3 text-center text-black">{qty.toFixed(2)}</td>}
+                      {columnVisibility.qty && (
+                        <td className="border border-gray-400 px-4 py-3 text-center text-black">
+                          {isEditMode ? (
+                            <input
+                              type="number"
+                              value={editableData[`${item.id}_qty`] ?? qty.toFixed(2)}
+                              onChange={(e) => setEditableData(prev => ({
+                                ...prev,
+                                [`${item.id}_qty`]: parseFloat(e.target.value) || 0
+                              }))}
+                              className="w-full bg-transparent border-none outline-none text-center text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-1 py-1"
+                              onBlur={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0;
+                                const updatedItems = lineItems.map(lineItem => 
+                                  lineItem.id === item.id 
+                                    ? { 
+                                        ...lineItem, 
+                                        ...(item.rateBasis === RATE_BASIS.PER_MTR 
+                                          ? { totalMeters: newValue, totalKg: newValue * (lineItem.wtPerMtr || 1) }
+                                          : { totalKg: newValue, totalMeters: newValue / (lineItem.wtPerMtr || 1) }
+                                        )
+                                      }
+                                    : lineItem
+                                );
+                                actions.updateLineItems(updatedItems);
+                              }}
+                            />
+                          ) : (
+                            qty.toFixed(2)
+                          )}
+                        </td>
+                      )}
                       {columnVisibility.unit && <td className="border border-gray-400 px-4 py-3 text-center text-black">{unit}</td>}
-                      {columnVisibility.weight && <td className="border border-gray-400 px-4 py-3 text-center text-black">{item.totalKg.toFixed(2)}</td>}
+                      {columnVisibility.weight && (
+                        <td className="border border-gray-400 px-4 py-3 text-center text-black">
+                          {isEditMode ? (
+                            <input
+                              type="number"
+                              value={editableData[`${item.id}_weight`] ?? item.totalKg.toFixed(2)}
+                              onChange={(e) => setEditableData(prev => ({
+                                ...prev,
+                                [`${item.id}_weight`]: parseFloat(e.target.value) || 0
+                              }))}
+                              className="w-full bg-transparent border-none outline-none text-center text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-1 py-1"
+                              onBlur={(e) => {
+                                const newWeight = parseFloat(e.target.value) || 0;
+                                const updatedItems = lineItems.map(lineItem => 
+                                  lineItem.id === item.id 
+                                    ? { ...lineItem, totalKg: newWeight }
+                                    : lineItem
+                                );
+                                actions.updateLineItems(updatedItems);
+                              }}
+                            />
+                          ) : (
+                            item.totalKg.toFixed(2)
+                          )}
+                        </td>
+                      )}
                       {columnVisibility.ratePerKg && <td className="border border-gray-400 px-4 py-3 text-center text-black">{ratePerKg.toFixed(2)}</td>}
                       {columnVisibility.ratePerMtr && <td className="border border-gray-400 px-4 py-3 text-center text-black">{ratePerMtr.toFixed(2)}</td>}
                       {columnVisibility.amount && <td className="border border-gray-400 px-4 py-3 text-center text-black">{item.lineAmount ? item.lineAmount.toFixed(2) : '0.00'}</td>}

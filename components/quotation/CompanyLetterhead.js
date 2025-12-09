@@ -3,9 +3,25 @@
 import React from 'react';
 import { format } from 'date-fns';
 
-const CompanyLetterhead = ({ quotationNumber, quotationDate, customerName }) => {
+const CompanyLetterhead = ({ quotationNumber, quotationDate, customerName, isEditMode, onUpdate }) => {
   return (
     <div className="company-letterhead mb-8 text-center print-text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Date in corner */}
+      <div className="text-right mb-4">
+        <div className="text-sm text-black">
+          <span className="font-semibold">Date:</span> {isEditMode ? (
+            <input
+              type="date"
+              value={quotationDate ? format(new Date(quotationDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => onUpdate && onUpdate('quotationDate', e.target.value)}
+              className="ml-2 bg-transparent border-none outline-none text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-1"
+            />
+          ) : (
+            quotationDate ? format(new Date(quotationDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')
+          )}
+        </div>
+      </div>
+      
       {/* Company Logo/Name Area - A4 optimized */}
       <div className="border-4 border-black p-4 mb-4" style={{ pageBreakInside: 'avoid' }}>
         <div className="text-center">
@@ -51,24 +67,6 @@ const CompanyLetterhead = ({ quotationNumber, quotationDate, customerName }) => 
         <h2 className="text-2xl font-bold text-black underline">
           QUOTATION
         </h2>
-        
-        {/* Quotation Details */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-black max-w-2xl mx-auto">
-          <div className="text-center">
-            <span className="font-semibold">Quotation No:</span>
-            <div className="font-medium">{quotationNumber || 'DEC001'}</div>
-          </div>
-          <div className="text-center">
-            <span className="font-semibold">Date:</span>
-            <div className="font-medium">
-              {quotationDate ? format(new Date(quotationDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}
-            </div>
-          </div>
-          <div className="text-center">
-            <span className="font-semibold">To:</span>
-            <div className="font-medium">{customerName || 'Valued Customer'}</div>
-          </div>
-        </div>
       </div>
     </div>
   );

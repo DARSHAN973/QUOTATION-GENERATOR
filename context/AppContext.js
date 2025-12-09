@@ -29,6 +29,8 @@ const initialState = {
       godown: 'Wagholi',
       plant: 'Hissar',
       gst: 18,
+      globalDiscount: 0,
+      discountMode: 'show', // 'show' or 'hide'
     },
     lineItems: [],
     bulkCalculation: {
