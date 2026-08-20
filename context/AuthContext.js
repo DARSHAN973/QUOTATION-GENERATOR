@@ -5,8 +5,8 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 
 // Initial auth state
 const initialAuthState = {
-  isAuthenticated: false,
-  isLoading: true,
+  isAuthenticated: true,
+  isLoading: false,
   user: null,
   error: null
 };
