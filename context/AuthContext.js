@@ -3,11 +3,19 @@
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 
+const TEMP_AUTH_BYPASS = true;
+const TEMP_USER = {
+  id: 'temporary-user',
+  email: 'dev@quotationcrm.local',
+  name: 'Development User',
+  role: 'ADMIN'
+};
+
 // Initial auth state
 const initialAuthState = {
-  isAuthenticated: true,
+  isAuthenticated: TEMP_AUTH_BYPASS,
   isLoading: false,
-  user: null,
+  user: TEMP_AUTH_BYPASS ? TEMP_USER : null,
   error: null
 };
 
@@ -84,6 +92,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check authentication status on mount
   useEffect(() => {
+    if (TEMP_AUTH_BYPASS) return;
     checkAuthStatus();
   }, []);
 
@@ -158,7 +167,10 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout error:', error);
     }
     
-    dispatch({ type: authActionTypes.LOGOUT });
+    dispatch({
+      type: TEMP_AUTH_BYPASS ? authActionTypes.LOGIN_SUCCESS : authActionTypes.LOGOUT,
+      ...(TEMP_AUTH_BYPASS ? { payload: TEMP_USER } : {})
+    });
   };
 
   const setUser = (user) => {
