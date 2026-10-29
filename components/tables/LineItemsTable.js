@@ -40,7 +40,7 @@ import {
 
 const LineItemsTable = () => {
   const { state, actions } = useApp();
-  const { lineItems, orderSettings } = state.quotation;
+  const { lineItems = [], orderSettings = {} } = state.quotation || {};
   const { priceList } = state;
   
   const [showAddForm, setShowAddForm] = useState(false);

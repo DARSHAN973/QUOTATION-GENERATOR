@@ -16,8 +16,8 @@ import { clsx } from 'clsx';
 
 const BulkCalculator = () => {
   const { state, actions } = useApp();
-  const { bulkCalculation, lineItems, orderSettings } = state.quotation;
-  const { settings } = state;
+  const { bulkCalculation = {}, lineItems = [], orderSettings = {} } = state.quotation || {};
+  const { settings = {} } = state;
   
   const [localBulk, setLocalBulk] = useState(bulkCalculation);
   const [bulkResults, setBulkResults] = useState(null);
@@ -142,7 +142,7 @@ const BulkCalculator = () => {
             onChange={(e) => handleInputChange('vehicleCapacity', parseFloat(e.target.value))}
             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
           >
-            {settings.vehicleCapacities.map(capacity => (
+            {(settings.vehicleCapacities || []).map(capacity => (
               <option key={capacity} value={capacity}>{capacity} Tons</option>
             ))}
           </select>

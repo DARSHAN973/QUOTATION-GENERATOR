@@ -4,6 +4,10 @@ import { MATERIALS, CLASSES, MAKES } from '../data/constants.js';
 
 // Generate description for GI Pipe
 export const generateGIDescription = (sizes, pipeClass, thickness = null, make = MAKES.JINDAL) => {
+  if (!sizes || !Array.isArray(sizes) || sizes.length === 0) {
+    return { header: 'GI PIPE', subLines: [], fullDescription: 'GI PIPE' };
+  }
+  
   const minSize = Math.min(...sizes);
   const maxSize = Math.max(...sizes);
   
@@ -33,6 +37,10 @@ export const generateGIDescription = (sizes, pipeClass, thickness = null, make =
 
 // Generate description for MS Pipe
 export const generateMSDescription = (sizes, pipeClass, thickness = null, make = MAKES.JINDAL) => {
+  if (!sizes || !Array.isArray(sizes) || sizes.length === 0) {
+    return { header: 'MS ERW PIPE', subLines: [], fullDescription: 'MS ERW PIPE' };
+  }
+  
   const minSize = Math.min(...sizes);
   const maxSize = Math.max(...sizes);
   
@@ -60,6 +68,10 @@ export const generateMSDescription = (sizes, pipeClass, thickness = null, make =
 
 // Generate description for Seamless Pipe
 export const generateSeamlessDescription = (sizes, schedule, make = [MAKES.MSL, MAKES.KFIL]) => {
+  if (!sizes || !Array.isArray(sizes) || sizes.length === 0) {
+    return { header: 'CS SEAMLESS PIPE', subLines: [], fullDescription: 'CS SEAMLESS PIPE' };
+  }
+  
   const makeText = Array.isArray(make) ? make.join(' / ') : make;
   
   const header = `CS SEAMLESS PIPE SA 106 GR "B" ${schedule} MAKE ${makeText}`;

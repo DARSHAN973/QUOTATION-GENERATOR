@@ -33,16 +33,19 @@ const QuotationHistory = () => {
   const [loading, setLoading] = useState(false);
 
   // Load quotations from storage
-  const loadQuotations = () => {
+  const loadQuotations = async () => {
     setLoading(true);
     try {
-      const allQuotations = getQuotations();
-      const quotationStats = getQuotationStats();
-      setQuotations(allQuotations);
-      setFilteredQuotations(allQuotations);
-      setStats(quotationStats);
+      const allQuotations = await getQuotations();
+      const quotationStats = await getQuotationStats();
+      setQuotations(Array.isArray(allQuotations) ? allQuotations : []);
+      setFilteredQuotations(Array.isArray(allQuotations) ? allQuotations : []);
+      setStats(quotationStats || {});
     } catch (error) {
       console.error('Error loading quotations:', error);
+      setQuotations([]);
+      setFilteredQuotations([]);
+      setStats({});
     }
     setLoading(false);
   };
@@ -53,14 +56,24 @@ const QuotationHistory = () => {
 
   // Filter quotations based on search only (removed status filter)
   useEffect(() => {
-    let filtered = quotations;
+    const filterQuotations = async () => {
+      let filtered = Array.isArray(quotations) ? quotations : [];
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      filtered = searchQuotations(searchQuery);
-    }
+      // Filter by search query
+      if (searchQuery.trim()) {
+        try {
+          filtered = await searchQuotations(searchQuery);
+          filtered = Array.isArray(filtered) ? filtered : [];
+        } catch (error) {
+          console.error('Error searching quotations:', error);
+          filtered = [];
+        }
+      }
 
-    setFilteredQuotations(filtered);
+      setFilteredQuotations(filtered);
+    };
+
+    filterQuotations();
   }, [quotations, searchQuery]);
 
   // Handle quotation actions
@@ -217,12 +230,12 @@ const QuotationHistory = () => {
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-gray-500">Loading quotations...</p>
           </div>
-        ) : filteredQuotations.length === 0 ? (
+        ) : !Array.isArray(filteredQuotations) || filteredQuotations.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No quotations found</h3>
             <p className="text-gray-500 mb-4">
-              {quotations.length === 0 ? 'Create your first quotation to get started.' : 'Try adjusting your search.'}
+              {!Array.isArray(quotations) || quotations.length === 0 ? 'Create your first quotation to get started.' : 'Try adjusting your search.'}
             </p>
             <button
               onClick={handleNewQuotation}
@@ -246,7 +259,7 @@ const QuotationHistory = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredQuotations.map((quotation) => (
+                {(Array.isArray(filteredQuotations) ? filteredQuotations : []).map((quotation) => (
                   <tr key={quotation.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">

@@ -4,18 +4,14 @@ import React from 'react';
 import { 
   Save, 
   Send, 
-  Copy, 
   FileSpreadsheet,
   FileText,
-  MessageCircle,
-  Download
+  MessageCircle
 } from 'lucide-react';
 
 const QuotationActions = ({ 
   onSave, 
   onSendWhatsApp, 
-  onCopyPDF, 
-  onCopyExcel,
   onExportPDF,
   onExportExcel,
   isLoading = false,
@@ -65,29 +61,6 @@ const QuotationActions = ({
           <MessageCircle className="w-6 h-6 text-green-600" />
           <span className="text-sm font-medium text-green-700">Send WhatsApp</span>
         </button>
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <h4 className="text-md font-medium text-gray-700 mb-3">Copy to Clipboard</h4>
-        <div className="flex space-x-4">
-          <button
-            onClick={onCopyPDF}
-            disabled={!hasQuotationData || isLoading}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Copy className="w-4 h-4 text-gray-600" />
-            <span className="text-sm text-gray-700">Copy PDF Link</span>
-          </button>
-
-          <button
-            onClick={onCopyExcel}
-            disabled={!hasQuotationData || isLoading}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Copy className="w-4 h-4 text-gray-600" />
-            <span className="text-sm text-gray-700">Copy Excel Data</span>
-          </button>
-        </div>
       </div>
 
       {isLoading && (

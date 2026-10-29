@@ -18,11 +18,11 @@ import {
 import { useApp } from '../../context/AppContext.js';
 import { SUPPLY_TYPES, RATE_BASIS } from '../../data/constants.js';
 import { generateDescription } from '../../utils/descriptions.js';
-import { exportQuotationAsExcel, exportDetailedQuotation } from '../../utils/excelExport.js';
+import { exportQuotationAsExcel } from '../../utils/excelExport.js';
 import { 
   downloadPDF, 
   copyPDFToClipboard, 
-  generateWhatsAppMessage 
+  generateWhatsAppMessageWithPDF 
 } from '../../utils/pdfExport.js';
 import { downloadAlternativePDF } from '../../utils/pdfExportAlternative.js';
 import { saveQuotation } from '../../utils/quotationStorage.js';
@@ -32,8 +32,16 @@ import { format } from 'date-fns';
 
 const PreviewExport = () => {
   const { state, actions } = useApp();
-  const { quotation, settings } = state;
-  const { orderSettings, lineItems, totals, termsAndConditions, partyName, quotationDate, srNo } = quotation;
+  const { quotation = {}, settings } = state;
+  const { 
+    orderSettings = {}, 
+    lineItems = [], 
+    totals = {}, 
+    termsAndConditions = {}, 
+    partyName = '', 
+    quotationDate = '', 
+    srNo = '' 
+  } = quotation;
   
   const [editableDescriptions, setEditableDescriptions] = useState({});
   const [editingDescription, setEditingDescription] = useState(null);
@@ -163,13 +171,32 @@ const PreviewExport = () => {
   const handleSendWhatsApp = async () => {
     try {
       setIsLoading(true);
-      const messageData = await generateWhatsAppMessage(quotationRef.current, quotation);
+      const messageData = await generateWhatsAppMessageWithPDF(quotationRef.current, quotation);
       
-      // Open WhatsApp Web with the message
-      const encodedMessage = encodeURIComponent(messageData.message);
+      if (!messageData.success) {
+        throw new Error(messageData.error || 'Failed to generate PDF for WhatsApp');
+      }
+      
+      // Download the PDF first (since WhatsApp Web can't directly attach files)
+      const link = document.createElement('a');
+      link.href = messageData.pdfUrl;
+      link.download = messageData.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the object URL
+      URL.revokeObjectURL(messageData.pdfUrl);
+      
+      // Open WhatsApp Web with the message (user can manually attach the downloaded PDF)
+      const encodedMessage = encodeURIComponent(messageData.message + '\n\n*Note: PDF quotation has been downloaded to your device. Please attach it to this message.*');
       const whatsappUrl = `https://web.whatsapp.com/send?text=${encodedMessage}`;
       
-      window.open(whatsappUrl, '_blank');
+      // Small delay to ensure PDF download starts first
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
+      }, 500);
+      
       setExportStatus('whatsapp-success');
     } catch (error) {
       console.error('Error sending to WhatsApp:', error);
@@ -286,7 +313,7 @@ const PreviewExport = () => {
   const handleExportDetailed = async () => {
     try {
       setIsLoading(true);
-      const result = exportDetailedQuotation(quotation, settings, {
+      const result = exportQuotationAsExcel(quotation, settings, {
         columnVisibility,
         editableDescriptions
       });
@@ -370,7 +397,7 @@ const PreviewExport = () => {
             {exportStatus === 'excel-detailed-success' && 'Detailed Excel exported successfully!'}
             {exportStatus === 'copy-success' && 'PDF copied to clipboard!'}
             {exportStatus === 'copy-excel-success' && 'Excel data copied to clipboard!'}
-            {exportStatus === 'whatsapp-success' && 'WhatsApp opened with message!'}
+            {exportStatus === 'whatsapp-success' && 'PDF downloaded! WhatsApp opened - please attach the PDF file.'}
             {exportStatus === 'error' && 'Error occurred. Please try again.'}
           </span>
         </div>
@@ -380,8 +407,6 @@ const PreviewExport = () => {
       <QuotationActions 
         onSave={handleSaveQuotation}
         onSendWhatsApp={handleSendWhatsApp}
-        onCopyPDF={handleCopyPDF}
-        onCopyExcel={handleCopyExcel}
         onExportPDF={handleExportPDF}
         onExportExcel={handleExportBasic}
         isLoading={isLoading}
@@ -412,17 +437,15 @@ const PreviewExport = () => {
       {/* Column Visibility Controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Column Visibility</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <p className="text-sm text-gray-600 mb-4">
+          SR No, Description, Quantity, Unit and Amount are always visible. You can hide/show the optional columns below:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { key: 'srNo', label: 'SR. NO' },
-            { key: 'description', label: 'Description' },
-            { key: 'qty', label: 'Quantity' },
-            { key: 'unit', label: 'Unit' },
-            { key: 'weight', label: 'Weight' },
-            { key: 'ratePerKg', label: 'Rate/Kg' },
-            { key: 'ratePerMtr', label: 'Rate/Mtr' },
-            { key: 'amount', label: 'Amount' }
-          ].map(({ key, label }) => (
+            { key: 'weight', label: 'Weight', optional: true },
+            { key: 'ratePerKg', label: 'Rate/Kg', optional: true },
+            { key: 'ratePerMtr', label: 'Rate/Mtr', optional: true }
+          ].map(({ key, label, optional }) => (
             <label key={key} className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -431,9 +454,12 @@ const PreviewExport = () => {
                   ...prev,
                   [key]: e.target.checked
                 }))}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={!optional}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
               />
-              <span className="text-sm text-gray-700">{label}</span>
+              <span className={`text-sm ${optional ? 'text-gray-700' : 'text-gray-500'}`}>
+                {label} {!optional && '(Always visible)'}
+              </span>
             </label>
           ))}
         </div>
@@ -519,14 +545,14 @@ const PreviewExport = () => {
             <table className="w-full border-collapse border border-gray-400 text-sm text-black" style={{ width: '100%', tableLayout: 'auto' }}>
               <thead>
                 <tr className="bg-gray-100">
-                  {columnVisibility.srNo && <th className="border border-gray-400 px-4 py-3 text-left text-black" style={{ width: '8%' }}>SR. NO</th>}
-                  {columnVisibility.description && <th className="border border-gray-400 px-4 py-3 text-left text-black" style={{ width: '35%' }}>ITEM DESCRIPTION</th>}
-                  {columnVisibility.qty && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '12%' }}>QTY</th>}
-                  {columnVisibility.unit && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '8%' }}>UNIT</th>}
-                  {columnVisibility.weight && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '12%' }}>WEIGHT</th>}
-                  {columnVisibility.ratePerKg && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '10%' }}>RATE PER KGS</th>}
-                  {columnVisibility.ratePerMtr && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '10%' }}>RATE PER MTRS</th>}
-                  {columnVisibility.amount && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '15%' }}>AMOUNT</th>}
+                  {columnVisibility.srNo && <th className="border border-gray-400 px-4 py-3 text-left text-black" style={{ width: '6%' }}>SR. NO</th>}
+                  {columnVisibility.description && <th className="border border-gray-400 px-4 py-3 text-left text-black" style={{ width: '45%' }}>ITEM DESCRIPTION</th>}
+                  {columnVisibility.qty && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '10%' }}>QTY</th>}
+                  {columnVisibility.unit && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '6%' }}>UNIT</th>}
+                  {columnVisibility.weight && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '10%' }}>WEIGHT</th>}
+                  {columnVisibility.ratePerKg && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '8%' }}>RATE PER KGS</th>}
+                  {columnVisibility.ratePerMtr && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '8%' }}>RATE PER MTRS</th>}
+                  {columnVisibility.amount && <th className="border border-gray-400 px-4 py-3 text-center text-black" style={{ width: '12%' }}>AMOUNT</th>}
                 </tr>
               </thead>
               <tbody>
@@ -582,30 +608,50 @@ const PreviewExport = () => {
                               {headingLetter}.
                             </td>
                           )}
-                          <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold" colSpan="7">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                value={editableDescriptions[item.id] || headingText}
-                                onChange={(e) => setEditableDescriptions(prev => ({
-                                  ...prev,
-                                  [item.id]: e.target.value
-                                }))}
-                                className="w-full bg-transparent border-none outline-none font-bold text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-2 py-1"
-                                onBlur={(e) => {
-                                  // Save to line items when user finishes editing
-                                  const updatedItems = lineItems.map(lineItem => 
-                                    lineItem.id === item.id 
-                                      ? { ...lineItem, headingText: e.target.value }
-                                      : lineItem
-                                  );
-                                  actions.updateLineItems(updatedItems);
-                                }}
-                              />
-                            ) : (
-                              headingText
-                            )}
-                          </td>
+                          {columnVisibility.description && (
+                            <td className="border border-gray-400 px-4 py-3 text-left text-black font-bold">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  value={editableDescriptions[item.id] || headingText}
+                                  onChange={(e) => setEditableDescriptions(prev => ({
+                                    ...prev,
+                                    [item.id]: e.target.value
+                                  }))}
+                                  className="w-full bg-transparent border-none outline-none font-bold text-black focus:bg-white focus:border focus:border-blue-500 focus:rounded px-2 py-1"
+                                  onBlur={(e) => {
+                                    // Save to line items when user finishes editing
+                                    const updatedItems = lineItems.map(lineItem => 
+                                      lineItem.id === item.id 
+                                        ? { ...lineItem, headingText: e.target.value }
+                                        : lineItem
+                                    );
+                                    actions.updateLineItems(updatedItems);
+                                  }}
+                                />
+                              ) : (
+                                headingText
+                              )}
+                            </td>
+                          )}
+                          {columnVisibility.qty && (
+                            <td className="border border-gray-400 px-4 py-3 text-center text-black font-bold">-</td>
+                          )}
+                          {columnVisibility.unit && (
+                            <td className="border border-gray-400 px-4 py-3 text-center text-black font-bold">-</td>
+                          )}
+                          {columnVisibility.weight && (
+                            <td className="border border-gray-400 px-4 py-3 text-center text-black font-bold">-</td>
+                          )}
+                          {columnVisibility.ratePerKg && (
+                            <td className="border border-gray-400 px-4 py-3 text-center text-black font-bold">-</td>
+                          )}
+                          {columnVisibility.ratePerMtr && (
+                            <td className="border border-gray-400 px-4 py-3 text-center text-black font-bold">-</td>
+                          )}
+                          {columnVisibility.amount && (
+                            <td className="border border-gray-400 px-4 py-3 text-center text-black font-bold">-</td>
+                          )}
                         </tr>
                       </React.Fragment>
                     );

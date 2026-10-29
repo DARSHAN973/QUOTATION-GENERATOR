@@ -20,15 +20,15 @@ import { SAMPLE_PRICE_LIST } from '../../data/priceList.js';
 
 const Settings = () => {
   const { state, actions } = useApp();
-  const [localSettings, setLocalSettings] = useState(state.settings);
-  const [localPriceList, setLocalPriceList] = useState(state.priceList);
+  const [localSettings, setLocalSettings] = useState(state.settings || DEFAULT_SETTINGS);
+  const [localPriceList, setLocalPriceList] = useState(state.priceList || {});
   const [activeSection, setActiveSection] = useState('general');
   const [saveStatus, setSaveStatus] = useState('');
 
   // Update local state when global state changes
   useEffect(() => {
-    setLocalSettings(state.settings);
-    setLocalPriceList(state.priceList);
+    setLocalSettings(state.settings || DEFAULT_SETTINGS);
+    setLocalPriceList(state.priceList || {});
   }, [state.settings, state.priceList]);
 
   const handleSettingChange = (key, value) => {
@@ -233,14 +233,18 @@ const Settings = () => {
       <div className="bg-gray-50 rounded-lg p-4">
         <h4 className="font-medium text-gray-900 mb-3">Current Price List Summary</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Object.entries(localPriceList).map(([material, sizes]) => (
+          {Object.entries(localPriceList || {}).map(([material, sizes]) => (
             <div key={material} className="bg-white rounded-lg p-3 border">
               <h5 className="font-medium text-gray-800">{material} Pipes</h5>
               <p className="text-sm text-gray-600">
-                {Object.keys(sizes).length} sizes configured
+                {Object.keys(sizes || {}).length} sizes configured
               </p>
               <p className="text-xs text-gray-500">
-                Size range: {Math.min(...Object.keys(sizes).map(Number))} - {Math.max(...Object.keys(sizes).map(Number))} NB
+                {Object.keys(sizes || {}).length > 0 ? (
+                  <>Size range: {Math.min(...Object.keys(sizes).map(Number))} - {Math.max(...Object.keys(sizes).map(Number))} NB</>
+                ) : (
+                  'No sizes configured'
+                )}
               </p>
             </div>
           ))}
